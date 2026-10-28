@@ -23,9 +23,12 @@ import {
   useTheme,
 } from "@/components/ui";
 import { dayProgress, TreatmentsToday } from "@/components/TreatmentsToday";
+import { MoneyToday } from "@/components/MoneyToday";
 import { hoursBetween, today } from "@/lib/dates";
 import { haptics } from "@/lib/haptics";
 import { refreshTreatments, type TreatmentState } from "@/lib/treatments";
+import { refreshSubscriptions, subscriptionAlerts, type MoneyAlert } from "@/lib/subscriptions";
+import { refreshWishlist, wishlistAlerts } from "@/lib/wishlist";
 
 type OpenSleep = { id: number; bed_at: string } | null;
 type LastNight = { id: number; hours: number; quality: number | null } | null;
@@ -55,6 +58,7 @@ export default function TodayScreen() {
   const [openSleep, setOpenSleep] = useState<OpenSleep>(null);
   const [lastNight, setLastNight] = useState<LastNight>(null);
   const [treatments, setTreatments] = useState<TreatmentState[]>([]);
+  const [moneyAlerts, setMoneyAlerts] = useState<MoneyAlert[]>([]);
 
   const load = useCallback(async () => {
     const water = await db.getFirstAsync<{ total: number | null }>(
@@ -79,6 +83,8 @@ export default function TodayScreen() {
     setLastNight(last ? { id: last.id, hours: hoursBetween(last.bed_at, last.wake_at), quality: last.quality } : null);
 
     setTreatments(await refreshTreatments(db));
+    const [subs, wishlist] = await Promise.all([refreshSubscriptions(db), refreshWishlist(db)]);
+    setMoneyAlerts([...subscriptionAlerts(subs), ...wishlistAlerts(wishlist)]);
   }, [db]);
 
   useFocusEffect(
@@ -155,11 +161,13 @@ export default function TodayScreen() {
 
       <TreatmentsToday states={treatments} onChanged={load} index={1} />
 
+      <MoneyToday alerts={moneyAlerts} index={2} />
+
       <Card
         title="Hydratation"
         icon="water"
         color="water"
-        index={2}
+        index={3}
         right={<Badge label={`${Math.round(Math.min(1, ml / goal) * 100)} %`} color={ml >= goal ? "success" : "water"} />}
       >
         <View style={{ flexDirection: "row", alignItems: "baseline", gap: space.xs }}>
@@ -187,7 +195,7 @@ export default function TodayScreen() {
         </View>
       </Card>
 
-      <Card title="Sommeil" icon="moon" color="sleep" index={3}>
+      <Card title="Sommeil" icon="moon" color="sleep" index={4}>
         {openSleep ? (
           <View style={{ gap: 2 }}>
             <Txt variant="number">

@@ -36,6 +36,8 @@ const light = {
     sport: { solid: "#C2410C", soft: "#FFF1E2" },
     groceries: { solid: "#15803D", soft: "#DCFCE7" },
     settings: { solid: "#475569", soft: "#E8ECF2" },
+    subs: { solid: "#BE185D", soft: "#FCE7F3" },
+    wish: { solid: "#8A5A00", soft: "#FDF3D7" },
   },
 };
 
@@ -70,6 +72,8 @@ const dark: typeof light = {
     sport: { solid: "#FB923C", soft: "#33200F" },
     groceries: { solid: "#4ADE80", soft: "#11281A" },
     settings: { solid: "#94A3B8", soft: "#1E2433" },
+    subs: { solid: "#F472B6", soft: "#3A1428" },
+    wish: { solid: "#FACC15", soft: "#2E2608" },
   },
 };
 

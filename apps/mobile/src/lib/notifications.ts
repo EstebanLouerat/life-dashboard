@@ -5,6 +5,7 @@ type NotificationsModule = typeof import("expo-notifications");
 
 export const CHANNEL_REMINDERS = "reminders";
 export const CHANNEL_TREATMENTS = "treatments";
+export const CHANNEL_MONEY = "money";
 
 let cached: NotificationsModule | null | undefined;
 
@@ -60,6 +61,10 @@ export async function setupNotifications(): Promise<boolean> {
     await N.setNotificationChannelAsync(CHANNEL_TREATMENTS, {
       name: "Traitements",
       importance: N.AndroidImportance.HIGH,
+    });
+    await N.setNotificationChannelAsync(CHANNEL_MONEY, {
+      name: "Argent",
+      importance: N.AndroidImportance.DEFAULT,
     });
   }
   const { granted } = await N.requestPermissionsAsync();
@@ -118,6 +123,27 @@ export async function scheduleWeekly(
       hour,
       minute,
     },
+  });
+  return true;
+}
+
+/** Monthly variant of scheduleDaily, on day `day` (1–28 to exist every month). */
+export async function scheduleMonthly(
+  id: string,
+  title: string,
+  body: string,
+  day: number,
+  hour: number,
+  minute: number,
+  channelId = CHANNEL_REMINDERS,
+): Promise<boolean> {
+  const N = getNotifications();
+  if (!N) return false;
+  await N.cancelScheduledNotificationAsync(id).catch(() => {});
+  await N.scheduleNotificationAsync({
+    identifier: id,
+    content: { title, body },
+    trigger: { type: N.SchedulableTriggerInputTypes.MONTHLY, channelId, day, hour, minute },
   });
   return true;
 }

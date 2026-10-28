@@ -114,6 +114,52 @@ const MIGRATIONS: string[] = [
   INSERT INTO treatment_regimens (treatment_id, effective_from, dose_qty, doses_per_day, frequency)
     SELECT id, date('now', 'localtime'), CASE unit WHEN 'ml' THEN 2 ELSE 1 END, 1, 'daily' FROM treatments;
   `,
+  // 4 — subscriptions, wishlist and monthly savings. Money is integer cents.
+  `
+  CREATE TABLE subscriptions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    category TEXT NOT NULL DEFAULT 'autre',
+    price_cents INTEGER NOT NULL,
+    cycle_unit TEXT NOT NULL,                  -- week | month | year
+    cycle_count INTEGER NOT NULL DEFAULT 1,
+    anchor_on TEXT NOT NULL,                   -- any billing date (YYYY-MM-DD); renewals derive from it
+    trial_ends_on TEXT,
+    reminder_days INTEGER NOT NULL DEFAULT 3,
+    billing TEXT NOT NULL DEFAULT 'direct',    -- google_play | direct
+    cancel_url TEXT,
+    notes TEXT,
+    status TEXT NOT NULL DEFAULT 'active',     -- active | cancelled
+    cancelled_on TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE wishlist_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    category TEXT NOT NULL,
+    price_cents INTEGER NOT NULL,
+    priority INTEGER NOT NULL DEFAULT 2,       -- 1 envie | 2 important | 3 essentiel
+    url TEXT,
+    notes TEXT,
+    status TEXT NOT NULL DEFAULT 'wanted',     -- wanted | bought | dropped
+    cooling_until TEXT,                        -- YYYY-MM-DD, null = no cooling-off
+    added_on TEXT NOT NULL,
+    closed_on TEXT,                            -- day bought or dropped
+    paid_cents INTEGER                         -- actual price when bought
+  );
+
+  -- savings balance entered by hand once a month (no bank link)
+  CREATE TABLE savings_balances (
+    month TEXT PRIMARY KEY,                    -- YYYY-MM
+    balance_cents INTEGER NOT NULL,
+    recorded_at TEXT NOT NULL
+  );
+
+  INSERT INTO settings (key, value) VALUES
+    ('wishlist_monthly_goal_cents', '0'),
+    ('wishlist_cooling_days', '30');
+  `,
 ];
 
 export async function migrate(db: SQLiteDatabase): Promise<void> {

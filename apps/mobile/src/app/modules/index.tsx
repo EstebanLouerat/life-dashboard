@@ -33,6 +33,13 @@ const SECTIONS: { title: string; entries: Entry[] }[] = [
     title: "Maison",
     entries: [{ href: "/modules/courses", icon: "cart", color: "groceries", title: "Courses", subtitle: "Menu et liste de la semaine" }],
   },
+  {
+    title: "Argent",
+    entries: [
+      { href: "/modules/abonnements", icon: "card", color: "subs", title: "Abonnements", subtitle: "Budget, prélèvements, résiliation" },
+      { href: "/modules/wishlist", icon: "gift", color: "wish", title: "Wishlist", subtitle: "Envies, épargne, réflexion" },
+    ],
+  },
 ];
 
 export default function ModulesScreen() {
