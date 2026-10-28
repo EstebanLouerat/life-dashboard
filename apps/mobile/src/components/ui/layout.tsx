@@ -1,5 +1,5 @@
 import { useContext, useRef, type ReactNode } from "react";
-import { Pressable, View, type PressableProps, type StyleProp, type ViewStyle } from "react-native";
+import { Pressable, RefreshControl, View, type PressableProps, type StyleProp, type ViewStyle } from "react-native";
 import Animated, {
   Extrapolation,
   FadeIn,
@@ -29,7 +29,8 @@ const FADE = 16;
  * the back button reachable. The bar stays clear at rest; it gains the
  * background colour once content slides under it, and the compact title
  * takes over once the large one is hidden. Content scrolls under the
- * floating tab bar too, so the bottom padding clears it.
+ * floating tab bar too, so the bottom padding clears it. `onRefresh` adds
+ * pull-to-refresh.
  */
 export function Screen({
   title,
@@ -37,6 +38,8 @@ export function Screen({
   overline,
   back,
   right,
+  refreshing,
+  onRefresh,
   children,
 }: {
   title?: string;
@@ -44,6 +47,8 @@ export function Screen({
   overline?: string;
   back?: boolean;
   right?: ReactNode;
+  refreshing?: boolean;
+  onRefresh?: () => void;
   children?: ReactNode;
 }) {
   const t = useTheme();
@@ -88,6 +93,17 @@ export function Screen({
           gap: space.lg,
         }}
         keyboardShouldPersistTaps="handled"
+        refreshControl={
+          onRefresh ? (
+            <RefreshControl
+              refreshing={!!refreshing}
+              onRefresh={onRefresh}
+              progressViewOffset={hasNav ? barHeight : insets.top}
+              colors={[t.primary]}
+              progressBackgroundColor={t.surface}
+            />
+          ) : undefined
+        }
       >
         {title ? (
           <Animated.View entering={FadeIn.duration(300)} onLayout={(e) => measure("blockY", e.nativeEvent.layout.y)} style={{ gap: 2 }}>

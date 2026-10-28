@@ -9,6 +9,7 @@
     "mobile": "npm run start -w mobile",
     "api": "npm run dev -w api",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "test": "npm run test --workspaces --if-present"
+    "test": "npm run test --workspaces --if-present",
+    "backlog:import": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/backlog-import.ts"
   }
 }

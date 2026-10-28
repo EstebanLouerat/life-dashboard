@@ -50,8 +50,8 @@ export default function RootLayout() {
 
 /**
  * Root stack: the three tabs live in the (tabs) group; full-screen flows
- * that must hide the tab bar (the guided hair photo check) are pushed over
- * them from the bottom and leave the same way.
+ * that must hide the tab bar (the guided hair photo check, quick capture)
+ * are pushed over them from the bottom and leave the same way.
  */
 function AppStack() {
   const db = useSQLiteContext();
@@ -71,6 +71,7 @@ function AppStack() {
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: t.bg } }}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="hair-check" options={{ animation: "slide_from_bottom" }} />
+        <Stack.Screen name="capture" options={{ animation: "slide_from_bottom" }} />
       </Stack>
     </>
   );

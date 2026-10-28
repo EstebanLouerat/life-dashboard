@@ -2,7 +2,7 @@ import { useCallback, useState } from "react";
 import { View } from "react-native";
 import Animated from "react-native-reanimated";
 import { LinearGradient } from "expo-linear-gradient";
-import { useFocusEffect } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import {
   Badge,
@@ -164,6 +164,13 @@ export default function TodayScreen() {
       overline={now.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}
       title={greeting(now.getHours())}
       subtitle={summary}
+      right={
+        <IconButton
+          icon="bulb-outline"
+          label="Noter une idée ou un bug"
+          onPress={() => router.push({ pathname: "/capture", params: { from: "/" } })}
+        />
+      }
     >
       <Animated.View entering={entering(0)}>
         <LinearGradient

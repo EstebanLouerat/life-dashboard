@@ -186,6 +186,34 @@ const MIGRATIONS: string[] = [
     UNIQUE (check_id, zone)
   );
   `,
+  // 6 — backlog: offline copy of the issues, and changes waiting for the network.
+  `
+  CREATE TABLE backlog_items (
+    id TEXT PRIMARY KEY,                       -- provider id (GitHub issue number)
+    title TEXT NOT NULL,
+    description TEXT NOT NULL,
+    status TEXT NOT NULL,                      -- todo | doing | done
+    kind TEXT,                                 -- idea | bug
+    module TEXT,
+    labels_json TEXT NOT NULL,
+    url TEXT NOT NULL,
+    updated_at TEXT NOT NULL                   -- ISO, from the provider
+  );
+
+  -- sent oldest first; a row stays until the provider accepts it
+  CREATE TABLE backlog_outbox (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    kind TEXT NOT NULL,                        -- create | status | comment
+    payload_json TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    attempts INTEGER NOT NULL DEFAULT 0,
+    last_error TEXT
+  );
+
+  INSERT INTO settings (key, value) VALUES
+    ('backlog_repo', ''),
+    ('backlog_synced_at', '');
+  `,
 ];
 
 export async function migrate(db: SQLiteDatabase): Promise<void> {

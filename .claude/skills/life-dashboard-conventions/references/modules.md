@@ -34,6 +34,10 @@ Status: runs today as a Claude skill; API route is a 501 placeholder. Next: Gmai
 Scope: renewal dates, J-3 reminder, "Résilier" button opening the Google Play subscriptions center or the service's own cancellation page. Direct cancellation is not possible on Android.
 Status: done (deep-link version accepted) — weekly / monthly / yearly cycles every N units, renewals derived from one anchor date (month-end clamping), monthly and yearly budget, next-30-days total, breakdown by category, free-trial end, reminders N days before (next 3 renewals + trial end, stable ids), Résilier → Google Play page or the service's URL then "mark cancelled", reactivate, delete.
 
+## Backlog (src/app/(tabs)/modules/backlog.tsx, src/app/capture.tsx, lib/backlog.ts, lib/backlogGithub.ts, packages/contracts/src/backlog.ts)
+
+Status: done — BacklogItem / BacklogProvider contract (tool-agnostic), GitHub Issues adapter (status = state + `status:doing` label, `module:` and kind labels; fine-grained token limited to the repo, in SecureStore, set in Réglages), offline copy in backlog_items and an outbox for changes made without network (backlog_outbox, sent oldest first), list by status with module filter, pull-to-refresh, one-tap status change, open on GitHub, quick capture "Idée / bug" from Today (app version + origin screen in the body), `npm run backlog:import` from this file. Claude Code convention in CLAUDE.md. Needs the repository on GitHub (no remote yet) and `gh` installed for Claude Code.
+
 ## Portfolio / crypto (later)
 Scope: CoinGecko prices, read-only exchange API keys.
 Status: not started.

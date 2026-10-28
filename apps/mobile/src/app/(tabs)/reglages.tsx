@@ -4,6 +4,8 @@ import { useSQLiteContext } from "expo-sqlite";
 import { Button, Card, Field, Notice, Screen, Segmented, space } from "@/components/ui";
 import { api, getApiConfig, setApiConfig } from "@/lib/api";
 import { loadThemePreference, saveThemePreference, type ThemePreference } from "@/lib/appearance";
+import { getBacklogConfig, saveBacklogConfig, syncBacklog } from "@/lib/backlog";
+import { parseRepo } from "@/lib/backlogGithub";
 import { haptics } from "@/lib/haptics";
 import { notificationsAvailable, scheduleDaily } from "@/lib/notifications";
 
@@ -21,9 +23,19 @@ export default function SettingsScreen() {
   const [hydrationErrors, setHydrationErrors] = useState<{ goal?: string; glass?: string }>({});
   const [reminderStatus, setReminderStatus] = useState<Status>(null);
   const [testing, setTesting] = useState(false);
+  const [backlogRepo, setBacklogRepo] = useState("");
+  const [backlogToken, setBacklogToken] = useState("");
+  const [backlogHasToken, setBacklogHasToken] = useState(false);
+  const [backlogRepoError, setBacklogRepoError] = useState<string | null>(null);
+  const [backlogStatus, setBacklogStatus] = useState<Status>(null);
+  const [backlogTesting, setBacklogTesting] = useState(false);
 
   useEffect(() => {
     loadThemePreference(db).then(setTheme);
+    getBacklogConfig(db).then((c) => {
+      setBacklogRepo(c.repo);
+      setBacklogHasToken(c.hasToken);
+    });
     getApiConfig().then((c) => {
       setBaseUrl(c.baseUrl);
       setAppKey(c.appKey);
@@ -56,6 +68,37 @@ export default function SettingsScreen() {
       setBackendStatus({ tone: "danger", text: e instanceof Error ? e.message : String(e) });
     } finally {
       setTesting(false);
+    }
+  };
+
+  const saveBacklog = async () => {
+    if (!parseRepo(backlogRepo)) {
+      haptics.warning();
+      setBacklogRepoError("Format propriétaire/dépôt, par exemple steb/life-dashboard.");
+      return;
+    }
+    if (!backlogToken.trim() && !backlogHasToken) {
+      haptics.warning();
+      setBacklogStatus({ tone: "warning", text: "Colle le jeton GitHub pour relier le backlog." });
+      return;
+    }
+    setBacklogTesting(true);
+    try {
+      await saveBacklogConfig(db, backlogRepo, backlogToken);
+      setBacklogToken("");
+      setBacklogHasToken(true);
+      const state = await syncBacklog(db);
+      if (state.error) {
+        haptics.warning();
+        setBacklogStatus({ tone: "danger", text: state.error });
+      } else if (state.offline) {
+        setBacklogStatus({ tone: "warning", text: "Enregistré, mais GitHub est injoignable pour l'instant." });
+      } else {
+        haptics.success();
+        setBacklogStatus({ tone: "success", text: `Relié : ${state.items.length} issue${state.items.length > 1 ? "s" : ""}.` });
+      }
+    } finally {
+      setBacklogTesting(false);
     }
   };
 
@@ -129,7 +172,31 @@ export default function SettingsScreen() {
         {backendStatus ? <Notice tone={backendStatus.tone}>{backendStatus.text}</Notice> : null}
       </Card>
 
-      <Card title="Hydratation" icon="water" color="water" index={2}>
+      <Card title="Backlog" subtitle="Issues GitHub du dépôt de l'app" icon="git-branch" color="settings" index={2}>
+        <Field
+          label="Dépôt"
+          value={backlogRepo}
+          onChangeText={(v) => (setBacklogRepo(v), setBacklogRepoError(null))}
+          autoCapitalize="none"
+          autoCorrect={false}
+          placeholder="propriétaire/life-dashboard"
+          error={backlogRepoError}
+        />
+        <Field
+          label="Jeton GitHub"
+          value={backlogToken}
+          onChangeText={setBacklogToken}
+          autoCapitalize="none"
+          autoCorrect={false}
+          secureTextEntry
+          placeholder={backlogHasToken ? "Enregistré · laisse vide pour le garder" : "github_pat_…"}
+          helper="Jeton « fine-grained » limité à ce seul dépôt, permission Issues en lecture et écriture. Il reste chiffré sur le téléphone."
+        />
+        <Button label="Enregistrer et synchroniser" icon="sync" variant="secondary" onPress={saveBacklog} loading={backlogTesting} />
+        {backlogStatus ? <Notice tone={backlogStatus.tone}>{backlogStatus.text}</Notice> : null}
+      </Card>
+
+      <Card title="Hydratation" icon="water" color="water" index={3}>
         <View style={{ flexDirection: "row", gap: space.sm }}>
           <View style={{ flex: 1 }}>
             <Field
@@ -154,7 +221,7 @@ export default function SettingsScreen() {
         {hydrationStatus ? <Notice tone={hydrationStatus.tone}>{hydrationStatus.text}</Notice> : null}
       </Card>
 
-      <Card title="Rappels" icon="notifications" color="primary" index={3}>
+      <Card title="Rappels" icon="notifications" color="primary" index={4}>
         {!notificationsAvailable() ? (
           <Notice tone="info">Expo Go sur Android : les rappels sont désactivés. Les alertes restent visibles dans Aujourd'hui.</Notice>
         ) : null}

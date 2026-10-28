@@ -16,4 +16,14 @@ Commands (repo root):
 - Native builds go through **EAS cloud**. `expo-dev-client` and `eas.json` are not configured yet.
 - The backend runs on the user's PC over plain HTTP (`http://<LAN IP>:3000`) during development. A release build must use HTTPS.
 
+## Backlog (GitHub Issues)
+
+The backlog lives in this repository's GitHub issues; the app reads and edits it (Modules → Backlog, "Idée / bug" on Today).
+- Status: open = to do, open + label `status:doing` = in progress, closed = done. Labels `module:<name>` (route folder: `hair-care`, `courses`…) and `bug` / `enhancement` give module and kind.
+- Claude Code works on issues labelled `claude-code` only: `gh issue list --label claude-code --state open`.
+- Taking one: `gh issue edit <n> --add-label status:doing`, then a branch `issue-<n>-<short-slug>`. Progress or questions go in `gh issue comment <n>`.
+- Finishing: the commit or PR says `Closes #<n>`, which closes the issue (done) when it reaches `main`; remove `status:doing` if it stays open.
+- `npm run backlog:import` turns the "Missing / Next / Later" items of `references/modules.md` into issues (simulation unless `--apply`, skips titles that exist).
+- Tokens never go in the repo or a log: `gh` uses its own login, the app a fine-grained token (this repo only, Issues read/write) in SecureStore.
+
 Recommended skills for this repo: `expo` (expo/skills), `claude-api` (anthropics/skills), `react-native-best-practices` (callstack), plus the installed `engineering:*` and `ui-ux-pro-max` skills.

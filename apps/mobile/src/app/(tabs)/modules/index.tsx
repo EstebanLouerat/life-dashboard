@@ -39,6 +39,10 @@ const SECTIONS: { title: string; entries: Entry[] }[] = [
       { href: "/modules/wishlist", icon: "gift", color: "wish", title: "Wishlist", subtitle: "Envies, épargne, réflexion" },
     ],
   },
+  {
+    title: "Outils",
+    entries: [{ href: "/modules/backlog", icon: "git-branch", color: "settings", title: "Backlog", subtitle: "Idées, bugs, suivi GitHub" }],
+  },
 ];
 
 export default function ModulesScreen() {
