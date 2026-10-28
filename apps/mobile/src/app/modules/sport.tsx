@@ -1,13 +1,28 @@
 import { useCallback, useEffect, useState } from "react";
-import { Alert, Text, View } from "react-native";
+import { Alert, View } from "react-native";
 import { useSQLiteContext } from "expo-sqlite";
 import { Rpe, WorkoutSession, type SessionFeedback, type WorkoutRequest } from "@ld/contracts";
-import { Body, Button, Card, Chips, Field, Screen, useTheme } from "@/components/ui";
+import {
+  Badge,
+  Button,
+  Card,
+  Divider,
+  EmptyState,
+  Field,
+  Icon,
+  radius,
+  Screen,
+  Segmented,
+  space,
+  Txt,
+  useTheme,
+} from "@/components/ui";
 import { api } from "@/lib/api";
 import { today } from "@/lib/dates";
+import { haptics } from "@/lib/haptics";
 
 const RPE_LABEL: Record<Rpe, string> = {
-  "trop-facile": "Trop facile",
+  "trop-facile": "Facile",
   ok: "OK",
   dur: "Dur",
   "trop-dur": "Trop dur",
@@ -69,7 +84,9 @@ export default function SportScreen() {
         JSON.stringify(data),
       );
       setSession({ id: res.lastInsertRowId, data, rpe: null });
+      haptics.success();
     } catch (e) {
+      haptics.warning();
       Alert.alert("Génération impossible", e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
@@ -83,9 +100,9 @@ export default function SportScreen() {
   };
 
   return (
-    <Screen>
-      <Card title="Séance du jour">
-        <Chips
+    <Screen back title="Sport" subtitle="Mobilité capoeira et renfo au poids du corps">
+      <Card title="Séance du jour" icon="barbell" color="sport" index={0}>
+        <Segmented
           value={focus}
           onChange={setFocus}
           options={[
@@ -96,35 +113,76 @@ export default function SportScreen() {
         />
         <Field label="Durée (min)" value={minutes} onChangeText={setMinutes} keyboardType="number-pad" />
         <Field label="Niveau actuel (facultatif)" value={level} onChangeText={setLevel} placeholder="ex. 8 pompes, mains au sol jambes tendues" />
-        <Field label="Douleurs / contraintes" value={constraints} onChangeText={setConstraints} placeholder="ex. poignet gauche sensible" />
-        <Button label={session ? "Nouvelle séance" : "Générer ma séance"} onPress={generate} loading={loading} />
+        <Field label="Douleurs ou contraintes" value={constraints} onChangeText={setConstraints} placeholder="ex. poignet gauche sensible" />
+        <Button label={session ? "Nouvelle séance" : "Générer ma séance"} icon="flash" onPress={generate} loading={loading} />
       </Card>
 
       {session ? (
         <>
-          <Card title={`${session.data.title} · ${session.data.totalMinutes} min`}>
-            <Body muted>{session.data.progressionNote}</Body>
+          <Card
+            title={session.data.title}
+            icon="list"
+            color="sport"
+            index={1}
+            right={<Badge label={`${session.data.totalMinutes} min`} icon="time-outline" color="sport" />}
+          >
+            <Txt variant="callout" tone="muted">
+              {session.data.progressionNote}
+            </Txt>
             {session.data.exercises.map((ex, i) => (
-              <View key={i} style={{ gap: 2, paddingVertical: 6, borderTopWidth: i ? 1 : 0, borderTopColor: t.border }}>
-                <Text style={{ color: t.text, fontWeight: "700" }}>
-                  {ex.name} · {ex.sets} × {ex.reps != null ? `${ex.reps} reps` : `${ex.seconds} s`}
-                </Text>
-                <Body muted>{ex.cue}</Body>
-                {ex.capoeiraLink ? <Body muted>↳ {ex.capoeiraLink}</Body> : null}
+              <View key={i} style={{ gap: space.md }}>
+                {i ? <Divider /> : null}
+                <View style={{ flexDirection: "row", gap: space.md }}>
+                  <View
+                    style={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: radius.pill,
+                      backgroundColor: t.module.sport.soft,
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <Txt variant="caption" color={t.module.sport.solid}>
+                      {i + 1}
+                    </Txt>
+                  </View>
+                  <View style={{ flex: 1, gap: space.xs }}>
+                    <Txt variant="bodyStrong">{ex.name}</Txt>
+                    <Badge
+                      label={`${ex.sets} × ${ex.reps != null ? `${ex.reps} reps` : `${ex.seconds} s`}`}
+                      color="sport"
+                    />
+                    <Txt variant="callout" tone="muted">
+                      {ex.cue}
+                    </Txt>
+                    {ex.capoeiraLink ? (
+                      <View style={{ flexDirection: "row", gap: 6, alignItems: "flex-start" }}>
+                        <Icon name="git-branch-outline" size={16} color={t.module.sport.solid} />
+                        <Txt variant="caption" tone="muted" style={{ flex: 1 }}>
+                          {ex.capoeiraLink}
+                        </Txt>
+                      </View>
+                    ) : null}
+                  </View>
+                </View>
               </View>
             ))}
           </Card>
 
-          <Card title="Ressenti">
-            <Body muted>Ton retour ajuste la prochaine séance.</Body>
-            <Chips
-              value={session.rpe ?? ("" as Rpe)}
+          <Card title="Ressenti" subtitle="Ton retour ajuste la prochaine séance." icon="pulse" color="sport" index={2}>
+            <Segmented
+              value={session.rpe}
               onChange={rate}
               options={Rpe.options.map((r) => ({ value: r, label: RPE_LABEL[r] }))}
             />
           </Card>
         </>
-      ) : null}
+      ) : (
+        <Card index={1}>
+          <EmptyState icon="barbell-outline" title="Pas encore de séance" body="Choisis un focus et une durée, puis génère ta séance du jour." />
+        </Card>
+      )}
     </Screen>
   );
 }

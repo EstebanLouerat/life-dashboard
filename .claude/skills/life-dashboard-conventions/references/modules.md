@@ -7,7 +7,7 @@ Three tabs: Aujourd'hui, Modules (hub in src/app/modules/index.tsx, one Stack fo
 
 ## Today (src/app/index.tsx)
 Scope: daily one-tap logs in one place — water, sleep, treatments taken, today's workout, alerts.
-Status: treatments card (Pris / Manqué / Annuler per scheduled dose, yesterday catch-up, stock and prescription alerts); hydration +1 glass / undo with goal gauge; sleep bed/wake + quality 1–5. Home-screen widget not started (needs react-native-android-widget, dev build).
+Status: hero rings (treatments, water, sleep); treatments card (Pris / Manqué / Annuler per scheduled dose, yesterday catch-up, stock and prescription alerts); hydration +1 glass / undo with goal gauge; sleep bed/wake + quality 1–5. Home-screen widget not started (needs react-native-android-widget, dev build).
 
 ## Groceries (src/app/modules/courses.tsx, /api/groceries)
 Scope: weekly meal plan → shopping list sorted by aisle, budget (default 60 €), days, people, store (Lidl/Auchan). Prices: user-maintained table (`knownPrices`) beats Claude estimates; later fed by receipt OCR and Open Prices.

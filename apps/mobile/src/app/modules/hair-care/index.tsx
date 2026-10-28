@@ -18,13 +18,14 @@ export default function HairCareScreen() {
   );
 
   return (
-    <Screen>
-      {states.map((s) => (
-        <TreatmentCard key={s.treatment.id} state={s} onChanged={load} />
+    <Screen back title="Hair care" subtitle="Traitements, stock et suivi">
+      {states.map((s, i) => (
+        <TreatmentCard key={s.treatment.id} state={s} onChanged={load} index={i} />
       ))}
       <Button
-        label="+ Nouveau traitement"
-        variant="secondary"
+        label="Nouveau traitement"
+        icon="add"
+        variant="soft"
         onPress={() => router.push({ pathname: "/modules/hair-care/[id]", params: { id: "new" } })}
       />
     </Screen>

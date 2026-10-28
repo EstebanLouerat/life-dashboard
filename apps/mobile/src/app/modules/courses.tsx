@@ -1,9 +1,28 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Alert, Pressable, Text, View } from "react-native";
+import { Alert, View } from "react-native";
+import Animated from "react-native-reanimated";
 import { useSQLiteContext } from "expo-sqlite";
 import { GroceryPlan, type Aisle, type GroceryRequest, type Store } from "@ld/contracts";
-import { Body, Button, Card, Chips, Field, Screen, useTheme } from "@/components/ui";
+import {
+  Badge,
+  Button,
+  Card,
+  EmptyState,
+  Field,
+  Icon,
+  popIn,
+  PressableScale,
+  ProgressBar,
+  radius,
+  Screen,
+  SectionTitle,
+  Segmented,
+  space,
+  Txt,
+  useTheme,
+} from "@/components/ui";
 import { api } from "@/lib/api";
+import { haptics } from "@/lib/haptics";
 
 const AISLE_LABEL: Record<Aisle, string> = {
   "fruits-legumes": "Fruits & légumes",
@@ -18,6 +37,8 @@ const AISLE_LABEL: Record<Aisle, string> = {
   autre: "Autre",
 };
 const AISLE_ORDER = Object.keys(AISLE_LABEL) as Aisle[];
+
+const euros = (n: number) => n.toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
 
 export default function CoursesScreen() {
   const db = useSQLiteContext();
@@ -69,7 +90,9 @@ export default function CoursesScreen() {
       );
       setPlan({ id: res.lastInsertRowId, data });
       setChecked(new Set());
+      haptics.success();
     } catch (e) {
+      haptics.warning();
       Alert.alert("Génération impossible", e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
@@ -78,6 +101,7 @@ export default function CoursesScreen() {
 
   const toggle = async (name: string) => {
     if (!plan) return;
+    haptics.tap();
     const next = new Set(checked);
     if (next.has(name)) {
       next.delete(name);
@@ -97,57 +121,118 @@ export default function CoursesScreen() {
     })).filter((g) => g.items.length > 0);
   }, [plan]);
 
+  const total = plan?.data.items.length ?? 0;
+
   return (
-    <Screen>
-      <Card title="Nouvelle semaine">
-        <View style={{ flexDirection: "row", gap: 8 }}>
-          <View style={{ flex: 1 }}><Field label="Jours" value={days} onChangeText={setDays} keyboardType="number-pad" /></View>
-          <View style={{ flex: 1 }}><Field label="Personnes" value={people} onChangeText={setPeople} keyboardType="number-pad" /></View>
-          <View style={{ flex: 1 }}><Field label="Budget €" value={budget} onChangeText={setBudget} keyboardType="number-pad" /></View>
+    <Screen back title="Courses" subtitle="Menu de la semaine et liste par rayon">
+      <Card title="Nouvelle semaine" icon="sparkles" color="groceries" index={0}>
+        <View style={{ flexDirection: "row", gap: space.sm }}>
+          <View style={{ flex: 1 }}>
+            <Field label="Jours" value={days} onChangeText={setDays} keyboardType="number-pad" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Field label="Personnes" value={people} onChangeText={setPeople} keyboardType="number-pad" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Field label="Budget (€)" value={budget} onChangeText={setBudget} keyboardType="number-pad" />
+          </View>
         </View>
-        <Chips
+        <Segmented
           value={store}
           onChange={setStore}
-          options={[{ value: "lidl", label: "Lidl" }, { value: "auchan", label: "Auchan" }]}
+          options={[
+            { value: "lidl", label: "Lidl" },
+            { value: "auchan", label: "Auchan" },
+          ]}
         />
         <Field label="Préférences (facultatif)" value={prefs} onChangeText={setPrefs} placeholder="ex. pas de poisson, 20 min max" />
-        <Button label="Générer menu + liste" onPress={generate} loading={loading} />
+        <Button label="Générer menu et liste" icon="sparkles" onPress={generate} loading={loading} />
       </Card>
 
       {plan ? (
         <>
-          <Card title={`Liste · ~${plan.data.totalEstEur.toFixed(2)} €`}>
-            <Body muted>
-              {plan.data.withinBudget ? "Dans le budget" : "⚠️ Au-dessus du budget"} · prix estimés, à affiner avec tes tickets
-            </Body>
+          <Card
+            title="Liste"
+            subtitle={`${checked.size}/${total} dans le panier`}
+            icon="cart"
+            color="groceries"
+            index={1}
+            right={<Badge label={`≈ ${euros(plan.data.totalEstEur)}`} color={plan.data.withinBudget ? "success" : "warning"} />}
+          >
+            <ProgressBar value={total ? checked.size / total : 0} color={t.module.groceries.solid} label="Articles cochés" />
+            <Txt variant="caption" tone="muted">
+              {plan.data.withinBudget ? "Dans le budget" : "Au-dessus du budget"} · prix estimés, à affiner avec tes tickets
+            </Txt>
             {byAisle.map((g) => (
-              <View key={g.aisle} style={{ gap: 6 }}>
-                <Text style={{ color: t.muted, fontWeight: "700", marginTop: 6 }}>{AISLE_LABEL[g.aisle]}</Text>
+              <View key={g.aisle} style={{ gap: space.xs }}>
+                <SectionTitle>{AISLE_LABEL[g.aisle]}</SectionTitle>
                 {g.items.map((item) => {
                   const done = checked.has(item.name);
                   return (
-                    <Pressable key={item.name} onPress={() => toggle(item.name)} style={{ flexDirection: "row", gap: 10, alignItems: "center" }}>
-                      <Text style={{ fontSize: 18 }}>{done ? "☑️" : "⬜️"}</Text>
-                      <Text style={{ flex: 1, color: done ? t.muted : t.text, textDecorationLine: done ? "line-through" : "none" }}>
-                        {item.name} · {item.quantity}
-                      </Text>
-                      <Text style={{ color: t.muted }}>{item.estPriceEur.toFixed(2)} €</Text>
-                    </Pressable>
+                    <PressableScale
+                      key={item.name}
+                      accessibilityRole="checkbox"
+                      accessibilityState={{ checked: done }}
+                      accessibilityLabel={`${item.name}, ${item.quantity}`}
+                      onPress={() => toggle(item.name)}
+                      style={{ flexDirection: "row", gap: space.md, alignItems: "center", minHeight: 48 }}
+                    >
+                      <View
+                        style={{
+                          width: 26,
+                          height: 26,
+                          borderRadius: radius.sm - 2,
+                          borderWidth: done ? 0 : 2,
+                          borderColor: t.textMuted,
+                          backgroundColor: done ? t.module.groceries.solid : "transparent",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        {done ? (
+                          <Animated.View entering={popIn}>
+                            <Icon name="checkmark" size={18} color={t.dark ? t.bg : t.onPrimary} />
+                          </Animated.View>
+                        ) : null}
+                      </View>
+                      <View style={{ flex: 1, opacity: done ? 0.55 : 1 }}>
+                        <Txt variant="bodyStrong" style={{ textDecorationLine: done ? "line-through" : "none" }}>
+                          {item.name}
+                        </Txt>
+                        <Txt variant="caption" tone="muted">
+                          {item.quantity}
+                        </Txt>
+                      </View>
+                      <Txt variant="callout" tone="muted">
+                        {euros(item.estPriceEur)}
+                      </Txt>
+                    </PressableScale>
                   );
                 })}
               </View>
             ))}
           </Card>
 
-          <Card title="Menu">
+          <Card title="Menu" icon="restaurant" color="groceries" index={2}>
             {plan.data.meals.map((m) => (
-              <Body key={`${m.day}-${m.slot}`}>
-                J{m.day} {m.slot === "dejeuner" ? "midi" : "soir"} · {m.title} ({m.prepMinutes} min)
-              </Body>
+              <View key={`${m.day}-${m.slot}`} style={{ flexDirection: "row", gap: space.md, alignItems: "center", minHeight: 48 }}>
+                <Badge label={`J${m.day}`} color="groceries" />
+                <Icon name={m.slot === "dejeuner" ? "sunny-outline" : "moon-outline"} size={18} color={t.textMuted} />
+                <View style={{ flex: 1 }}>
+                  <Txt variant="bodyStrong">{m.title}</Txt>
+                  <Txt variant="caption" tone="muted">
+                    {m.slot === "dejeuner" ? "Midi" : "Soir"} · {m.prepMinutes} min
+                  </Txt>
+                </View>
+              </View>
             ))}
           </Card>
         </>
-      ) : null}
+      ) : (
+        <Card index={1}>
+          <EmptyState icon="cart-outline" title="Pas encore de liste" body="Règle la semaine puis génère un menu et sa liste de courses." />
+        </Card>
+      )}
     </Screen>
   );
 }

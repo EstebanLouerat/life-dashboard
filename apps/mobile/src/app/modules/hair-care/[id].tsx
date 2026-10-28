@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { Alert } from "react-native";
-import { router, Stack, useLocalSearchParams } from "expo-router";
+import { Alert, View } from "react-native";
+import { router, useLocalSearchParams } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
-import { Body, Button, Card, Chips, Field, MultiChips, Screen } from "@/components/ui";
+import { Button, Card, Field, MultiChips, Screen, Segmented, space, Txt } from "@/components/ui";
 import { formatFrDate, parseFrDate } from "@/lib/dates";
+import { haptics } from "@/lib/haptics";
 import type { Frequency } from "@/lib/stock";
 import {
   archiveTreatment,
@@ -15,14 +16,16 @@ import {
 } from "@/lib/treatments";
 
 const FREQUENCIES: { value: Frequency; label: string }[] = [
-  { value: "daily", label: "Tous les jours" },
-  { value: "weekdays", label: "Jours choisis" },
+  { value: "daily", label: "Chaque jour" },
+  { value: "weekdays", label: "Certains jours" },
   { value: "as_needed", label: "À la demande" },
 ];
 
 type Unit = (typeof UNITS)[number];
+type Errors = Partial<Record<"name" | "dose" | "perDay" | "weekdays" | "time" | "size" | "waste" | "lead" | "rx" | "rxLead", string>>;
 
 const num = (s: string) => Number(s.replace(",", ".").trim());
+const isWholeDays = (n: number) => Number.isInteger(n) && n >= 0;
 
 export default function TreatmentEditScreen() {
   const db = useSQLiteContext();
@@ -41,6 +44,8 @@ export default function TreatmentEditScreen() {
   const [renewalLead, setRenewalLead] = useState("10");
   const [rxExpires, setRxExpires] = useState("");
   const [rxLead, setRxLead] = useState("10");
+  const [errors, setErrors] = useState<Errors>({});
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (isNew) return;
@@ -65,6 +70,12 @@ export default function TreatmentEditScreen() {
     });
   }, [db, id, isNew]);
 
+  /** Clears a field's error as soon as it is edited. */
+  const edit = (key: keyof Errors, set: (v: string) => void) => (v: string) => {
+    set(v);
+    if (errors[key]) setErrors({ ...errors, [key]: undefined });
+  };
+
   const save = async () => {
     const dose = num(doseQty);
     const perDay = num(dosesPerDay);
@@ -75,40 +86,46 @@ export default function TreatmentEditScreen() {
     const rxDay = rxExpires.trim() ? parseFrDate(rxExpires) : null;
     const time = reminderTime.trim();
 
-    const errors = [
-      !name.trim() && "le nom",
-      !(dose > 0) && "la quantité par prise",
-      !(Number.isInteger(perDay) && perDay >= 1) && "le nombre de prises par jour",
-      frequency === "weekdays" && weekdays.length === 0 && "les jours",
-      time && !/^([01]?\d|2[0-3]):[0-5]\d$/.test(time) && "l'heure (HH:MM)",
-      size !== null && !(size > 0) && "la taille de boîte",
-      !(waste >= 0 && waste < 100) && "la marge de perte",
-      !(Number.isInteger(lead) && lead >= 0) && "le délai d'alerte",
-      rxExpires.trim() && !rxDay && "la date d'ordonnance (JJ/MM/AAAA)",
-      !(Number.isInteger(rxLeadDays) && rxLeadDays >= 0) && "le délai d'alerte ordonnance",
-    ].filter(Boolean);
-    if (errors.length) {
-      Alert.alert("À corriger", errors.join(", "));
+    const next: Errors = {};
+    if (!name.trim()) next.name = "Donne un nom au traitement.";
+    if (!(dose > 0)) next.dose = "Quantité supérieure à 0.";
+    if (!(Number.isInteger(perDay) && perDay >= 1)) next.perDay = "Nombre entier, au moins 1.";
+    if (frequency === "weekdays" && weekdays.length === 0) next.weekdays = "Choisis au moins un jour.";
+    if (time && !/^([01]?\d|2[0-3]):[0-5]\d$/.test(time)) next.time = "Format HH:MM, par exemple 09:00.";
+    if (size !== null && !(size > 0)) next.size = "Quantité supérieure à 0, ou vide.";
+    if (!(waste >= 0 && waste < 100)) next.waste = "Entre 0 et 99 %.";
+    if (!isWholeDays(lead)) next.lead = "Nombre de jours entier.";
+    if (rxExpires.trim() && !rxDay) next.rx = "Format JJ/MM/AAAA, par exemple 31/12/2026.";
+    if (!isWholeDays(rxLeadDays)) next.rxLead = "Nombre de jours entier.";
+    setErrors(next);
+    if (Object.keys(next).length) {
+      haptics.warning();
       return;
     }
 
-    await saveTreatment(
-      db,
-      {
-        name,
-        unit,
-        packageSize: size,
-        wastePct: waste / 100,
-        reminderTime: time ? time.padStart(5, "0") : null,
-        renewalLeadDays: lead,
-        prescriptionExpiresOn: rxDay,
-        prescriptionLeadDays: rxLeadDays,
-        regimen: { doseQty: dose, dosesPerDay: perDay, frequency, weekdays: weekdays.map(Number) },
-      },
-      isNew ? undefined : Number(id),
-    );
-    await refreshTreatments(db, { doseReminders: true });
-    router.back();
+    setSaving(true);
+    try {
+      await saveTreatment(
+        db,
+        {
+          name,
+          unit,
+          packageSize: size,
+          wastePct: waste / 100,
+          reminderTime: time ? time.padStart(5, "0") : null,
+          renewalLeadDays: lead,
+          prescriptionExpiresOn: rxDay,
+          prescriptionLeadDays: rxLeadDays,
+          regimen: { doseQty: dose, dosesPerDay: perDay, frequency, weekdays: weekdays.map(Number) },
+        },
+        isNew ? undefined : Number(id),
+      );
+      await refreshTreatments(db, { doseReminders: true });
+      haptics.success();
+      router.back();
+    } finally {
+      setSaving(false);
+    }
   };
 
   const archive = () =>
@@ -127,61 +144,112 @@ export default function TreatmentEditScreen() {
   const packageWord = unit === "ml" ? "flacon" : "boîte";
 
   return (
-    <Screen>
-      <Stack.Screen options={{ title: isNew ? "Nouveau traitement" : name || "Traitement" }} />
-
-      <Card title="Posologie">
-        <Field label="Nom" value={name} onChangeText={setName} />
-        <Chips options={UNITS.map((u) => ({ value: u, label: u }))} value={unit} onChange={setUnit} />
-        <Field label={`Quantité par prise (${unit})`} value={doseQty} onChangeText={setDoseQty} keyboardType="decimal-pad" />
-        <Field
-          label={unit === "ml" ? "Applications par jour" : "Prises par jour"}
-          value={dosesPerDay}
-          onChangeText={setDosesPerDay}
-          keyboardType="number-pad"
-        />
-        <Chips options={FREQUENCIES} value={frequency} onChange={setFrequency} />
-        {frequency === "weekdays" ? <MultiChips options={WEEKDAY_OPTIONS} value={weekdays} onChange={setWeekdays} /> : null}
-        {frequency !== "as_needed" ? (
-          <Field
-            label="Heure du rappel (HH:MM, vide = aucun)"
-            value={reminderTime}
-            onChangeText={setReminderTime}
-            keyboardType="numbers-and-punctuation"
-          />
+    <Screen back title={isNew ? "Nouveau traitement" : name || "Traitement"} subtitle={isNew ? undefined : "Modifier le traitement"}>
+      <Card title="Posologie" icon="medkit-outline" color="care" index={0}>
+        <Field label="Nom" value={name} onChangeText={edit("name", setName)} error={errors.name} />
+        <View style={{ gap: 6 }}>
+          <Txt variant="caption" tone="muted">
+            Unité
+          </Txt>
+          <Segmented options={UNITS.map((u) => ({ value: u, label: u }))} value={unit} onChange={setUnit} />
+        </View>
+        <View style={{ flexDirection: "row", gap: space.sm }}>
+          <View style={{ flex: 1 }}>
+            <Field
+              label={`Par prise (${unit})`}
+              value={doseQty}
+              onChangeText={edit("dose", setDoseQty)}
+              keyboardType="decimal-pad"
+              error={errors.dose}
+            />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Field
+              label={unit === "ml" ? "Applications / jour" : "Prises / jour"}
+              value={dosesPerDay}
+              onChangeText={edit("perDay", setDosesPerDay)}
+              keyboardType="number-pad"
+              error={errors.perDay}
+            />
+          </View>
+        </View>
+        <View style={{ gap: 6 }}>
+          <Txt variant="caption" tone="muted">
+            Fréquence
+          </Txt>
+          <Segmented options={FREQUENCIES} value={frequency} onChange={setFrequency} />
+        </View>
+        {frequency === "weekdays" ? (
+          <View style={{ gap: 6 }}>
+            <MultiChips
+              options={WEEKDAY_OPTIONS}
+              value={weekdays}
+              onChange={(v) => {
+                setWeekdays(v);
+                if (errors.weekdays) setErrors({ ...errors, weekdays: undefined });
+              }}
+            />
+            {errors.weekdays ? (
+              <Txt variant="caption" tone="danger">
+                {errors.weekdays}
+              </Txt>
+            ) : null}
+          </View>
         ) : null}
-        {!isNew ? <Body muted>Un changement de posologie s'applique à partir d'aujourd'hui.</Body> : null}
+        {!isNew ? (
+          <Txt variant="caption" tone="muted">
+            Un changement de posologie s'applique à partir d'aujourd'hui ; les jours passés gardent l'ancienne.
+          </Txt>
+        ) : null}
       </Card>
 
-      <Card title="Stock">
+      {frequency !== "as_needed" ? (
+        <Card title="Rappel" icon="notifications-outline" color="primary" index={1}>
+          <Field
+            label="Heure du rappel"
+            helper="Laisse vide pour ne pas être rappelé."
+            value={reminderTime}
+            onChangeText={edit("time", setReminderTime)}
+            keyboardType="numbers-and-punctuation"
+            placeholder="09:00"
+            error={errors.time}
+          />
+        </Card>
+      ) : null}
+
+      <Card title="Stock" icon="cube-outline" color="care" index={2}>
         <Field
           label={`Taille d'un${unit === "ml" ? "" : "e"} ${packageWord} (${unit})`}
           value={packageSize}
-          onChangeText={setPackageSize}
+          onChangeText={edit("size", setPackageSize)}
           keyboardType="decimal-pad"
+          error={errors.size}
         />
-        <Field label="Marge de perte (%)" value={wastePct} onChangeText={setWastePct} keyboardType="decimal-pad" />
-        <Field
-          label="Alerte avant épuisement (jours)"
-          value={renewalLead}
-          onChangeText={setRenewalLead}
-          keyboardType="number-pad"
-        />
+        <View style={{ flexDirection: "row", gap: space.sm }}>
+          <View style={{ flex: 1 }}>
+            <Field label="Marge de perte (%)" value={wastePct} onChangeText={edit("waste", setWastePct)} keyboardType="decimal-pad" error={errors.waste} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Field label="Alerte (jours avant)" value={renewalLead} onChangeText={edit("lead", setRenewalLead)} keyboardType="number-pad" error={errors.lead} />
+          </View>
+        </View>
       </Card>
 
-      <Card title="Ordonnance">
+      <Card title="Ordonnance" icon="document-text-outline" color="primary" index={3}>
         <Field
-          label="Expiration (JJ/MM/AAAA, vide = aucune)"
+          label="Expiration"
+          helper="JJ/MM/AAAA, vide si pas d'ordonnance."
           value={rxExpires}
-          onChangeText={setRxExpires}
+          onChangeText={edit("rx", setRxExpires)}
           keyboardType="numbers-and-punctuation"
           placeholder="31/12/2026"
+          error={errors.rx}
         />
-        <Field label="Alerte avant expiration (jours)" value={rxLead} onChangeText={setRxLead} keyboardType="number-pad" />
+        <Field label="Alerte (jours avant)" value={rxLead} onChangeText={edit("rxLead", setRxLead)} keyboardType="number-pad" error={errors.rxLead} />
       </Card>
 
-      <Button label="Enregistrer" onPress={save} />
-      {!isNew ? <Button label="Archiver" variant="secondary" onPress={archive} /> : null}
+      <Button label="Enregistrer" icon="checkmark" onPress={save} loading={saving} />
+      {!isNew ? <Button label="Archiver" icon="archive-outline" variant="danger" onPress={archive} /> : null}
     </Screen>
   );
 }
