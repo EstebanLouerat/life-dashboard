@@ -7,4 +7,12 @@ Commands (repo root):
 - `npm run mobile` — start the Expo dev server
 - `npm run typecheck` — typecheck every workspace
 
+## Environnement
+
+- Windows dev machine, no local Android SDK: never rely on `expo run:android` or Android Studio.
+- Testing happens in **Expo Go**: `npx expo start` in `apps/mobile`.
+- `expo-notifications` does not load in Expo Go on Android. It is loaded on demand in `src/lib/notifications.ts`; **never import it at the top of any file**. Every caller must handle "notifications unavailable" (`scheduleDaily` returns `false`, `notificationsAvailable()`).
+- Native builds go through **EAS cloud**. `expo-dev-client` and `eas.json` are not configured yet.
+- The backend runs on the user's PC over plain HTTP (`http://<LAN IP>:3000`) during development. A release build must use HTTPS.
+
 Recommended skills for this repo: `expo` (expo/skills), `claude-api` (anthropics/skills), `react-native-best-practices` (callstack), plus the installed `engineering:*` and `ui-ux-pro-max` skills.
