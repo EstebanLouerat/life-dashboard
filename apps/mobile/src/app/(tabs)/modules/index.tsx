@@ -24,7 +24,7 @@ const SECTIONS: { title: string; entries: Entry[] }[] = [
   {
     title: "Santé",
     entries: [
-      { href: "/modules/hair-care", icon: "medkit", color: "care", title: "Hair care", subtitle: "Traitements, stock, rappels" },
+      { href: "/modules/hair-care", icon: "medkit", color: "care", title: "Hair care", subtitle: "Traitements, stock, photos" },
       { href: "/modules/sport", icon: "barbell", color: "sport", title: "Sport", subtitle: "Séance du jour" },
     ],
   },

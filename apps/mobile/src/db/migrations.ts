@@ -160,6 +160,32 @@ const MIGRATIONS: string[] = [
     ('wishlist_monthly_goal_cents', '0'),
     ('wishlist_cooling_days', '30');
   `,
+  // 5 — monthly hair photo checks (hair care phase 2). Files live in the app's
+  // private document directory (hair/…); rows keep paths relative to it.
+  `
+  CREATE TABLE hair_checks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    day TEXT NOT NULL,                         -- YYYY-MM-DD the check was started
+    notes TEXT,
+    side_effects TEXT,                         -- free text, null = nothing reported
+    completed_at TEXT,                         -- ISO; null while photos are being taken
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE hair_photos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    check_id INTEGER NOT NULL REFERENCES hair_checks(id),
+    zone TEXT NOT NULL,                        -- frontal | temples | vertex | top
+    path TEXT NOT NULL,                        -- full photo, relative to the document directory
+    thumb_path TEXT NOT NULL,                  -- small copy for grids
+    mean_luma REAL NOT NULL,                   -- 0–255, average over a 64 px thumbnail
+    scene_ev REAL,                             -- EXIF exposure (EV at ISO 100), null if the phone gave none
+    width INTEGER NOT NULL,
+    height INTEGER NOT NULL,
+    taken_at TEXT NOT NULL,                    -- ISO
+    UNIQUE (check_id, zone)
+  );
+  `,
 ];
 
 export async function migrate(db: SQLiteDatabase): Promise<void> {

@@ -1,5 +1,6 @@
 import { useEffect } from "react";
-import { SplashScreen, Tabs } from "expo-router";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { SplashScreen, Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { SQLiteProvider, useSQLiteContext } from "expo-sqlite";
 import * as SystemUI from "expo-system-ui";
@@ -15,7 +16,6 @@ import { migrate } from "@/db/migrations";
 import { setupNotifications } from "@/lib/notifications";
 import { loadThemePreference } from "@/lib/appearance";
 import { useTheme } from "@/components/ui";
-import { TabBar } from "@/components/TabBar";
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -40,17 +40,20 @@ export default function RootLayout() {
   if (!ready) return null;
 
   return (
-    <SQLiteProvider databaseName="life-dashboard.db" onInit={migrate}>
-      <AppTabs />
-    </SQLiteProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SQLiteProvider databaseName="life-dashboard.db" onInit={migrate}>
+        <AppStack />
+      </SQLiteProvider>
+    </GestureHandlerRootView>
   );
 }
 
 /**
- * Three tabs only: Today (daily one-tap logs), Modules (hub, one stack for
- * every module) and Settings. New modules go in src/app/modules/, not in a tab.
+ * Root stack: the three tabs live in the (tabs) group; full-screen flows
+ * that must hide the tab bar (the guided hair photo check) are pushed over
+ * them from the bottom and leave the same way.
  */
-function AppTabs() {
+function AppStack() {
   const db = useSQLiteContext();
   const t = useTheme();
 
@@ -65,14 +68,10 @@ function AppTabs() {
   return (
     <>
       <StatusBar style={t.dark ? "light" : "dark"} />
-      <Tabs
-        tabBar={(props) => <TabBar {...props} />}
-        screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: t.bg } }}
-      >
-        <Tabs.Screen name="index" options={{ title: "Aujourd'hui" }} />
-        <Tabs.Screen name="modules" options={{ title: "Modules" }} />
-        <Tabs.Screen name="reglages" options={{ title: "Réglages" }} />
-      </Tabs>
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: t.bg } }}>
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="hair-check" options={{ animation: "slide_from_bottom" }} />
+      </Stack>
     </>
   );
 }

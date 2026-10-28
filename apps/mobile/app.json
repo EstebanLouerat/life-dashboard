@@ -18,7 +18,8 @@
       "permissions": [
         "POST_NOTIFICATIONS",
         "SCHEDULE_EXACT_ALARM"
-      ]
+      ],
+      "allowBackup": false
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -28,7 +29,13 @@
       "expo-sqlite",
       "expo-secure-store",
       "expo-notifications",
-      "expo-font"
+      "expo-font",
+      [
+        "expo-camera",
+        {
+          "recordAudioAndroid": false
+        }
+      ]
     ],
     "scheme": "lifedashboard",
     "experiments": {

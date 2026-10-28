@@ -29,6 +29,8 @@ const light = {
   heroGradient: ["#4F46E5", "#7C3AED"] as readonly [string, string],
   onHero: "#FFFFFF",
   heroTrack: "rgba(255,255,255,0.25)",
+  /** Over a camera preview or a photo: same in both modes. */
+  media: { bg: "#000000", fg: "#FFFFFF", muted: "rgba(255,255,255,0.75)", scrim: "rgba(0,0,0,0.55)", guide: "rgba(255,255,255,0.9)" },
   module: {
     water: { solid: "#0369A1", soft: "#E0F2FE" },
     sleep: { solid: "#7C3AED", soft: "#EFE7FD" },
@@ -65,6 +67,7 @@ const dark: typeof light = {
   heroGradient: ["#3730A3", "#6D28D9"] as readonly [string, string],
   onHero: "#FFFFFF",
   heroTrack: "rgba(255,255,255,0.25)",
+  media: { bg: "#000000", fg: "#FFFFFF", muted: "rgba(255,255,255,0.75)", scrim: "rgba(0,0,0,0.55)", guide: "rgba(255,255,255,0.9)" },
   module: {
     water: { solid: "#38BDF8", soft: "#0C2635" },
     sleep: { solid: "#A78BFA", soft: "#241A3A" },
