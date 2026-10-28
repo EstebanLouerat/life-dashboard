@@ -1,4 +1,5 @@
 import { Platform } from "react-native";
+import { isRunningInExpoGo } from "expo";
 
 type NotificationsModule = typeof import("expo-notifications");
 
@@ -10,11 +11,19 @@ let cached: NotificationsModule | null | undefined;
 /**
  * expo-notifications throws at import time in Expo Go on Android (a native
  * module is missing there). A static import would take down the whole route
- * tree, so it is loaded lazily and failure means "reminders unavailable".
+ * tree, so it is loaded lazily and "unavailable" means reminders are off.
+ * Expo Go on Android is skipped before require(): a module that throws while
+ * being required lazily is reported as fatal by Metro's require guard
+ * (ErrorUtils.reportFatalError), even inside try/catch.
  * Works normally in a development build.
  */
 function getNotifications(): NotificationsModule | null {
   if (cached !== undefined) return cached;
+  if (Platform.OS === "android" && isRunningInExpoGo()) {
+    console.warn("[notifications] Expo Go on Android: expo-notifications not loaded, reminders disabled.");
+    cached = null;
+    return cached;
+  }
   try {
     const mod = require("expo-notifications") as NotificationsModule;
     mod.setNotificationHandler({
