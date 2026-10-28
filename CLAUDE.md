@@ -6,6 +6,7 @@ Commands (repo root):
 - `npm run api` — start the API on port 3000 (needs `apps/api/.env.local`)
 - `npm run mobile` — start the Expo dev server
 - `npm run typecheck` — typecheck every workspace
+- `npm test` — unit tests (`node --test` on `apps/mobile/src/lib/*.test.ts`)
 
 ## Environnement
 

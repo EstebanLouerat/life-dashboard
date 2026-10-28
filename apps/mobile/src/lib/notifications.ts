@@ -3,6 +3,7 @@ import { Platform } from "react-native";
 type NotificationsModule = typeof import("expo-notifications");
 
 export const CHANNEL_REMINDERS = "reminders";
+export const CHANNEL_TREATMENTS = "treatments";
 
 let cached: NotificationsModule | null | undefined;
 
@@ -47,6 +48,10 @@ export async function setupNotifications(): Promise<boolean> {
       name: "Rappels",
       importance: N.AndroidImportance.HIGH,
     });
+    await N.setNotificationChannelAsync(CHANNEL_TREATMENTS, {
+      name: "Traitements",
+      importance: N.AndroidImportance.HIGH,
+    });
   }
   const { granted } = await N.requestPermissionsAsync();
   return granted;
@@ -63,6 +68,7 @@ export async function scheduleDaily(
   body: string,
   hour: number,
   minute: number,
+  channelId = CHANNEL_REMINDERS,
 ): Promise<boolean> {
   const N = getNotifications();
   if (!N) return false;
@@ -72,10 +78,66 @@ export async function scheduleDaily(
     content: { title, body },
     trigger: {
       type: N.SchedulableTriggerInputTypes.DAILY,
-      channelId: CHANNEL_REMINDERS,
+      channelId,
       hour,
       minute,
     },
   });
   return true;
+}
+
+/** Weekly variant of scheduleDaily. `isoWeekday`: 1 = Monday … 7 = Sunday. */
+export async function scheduleWeekly(
+  id: string,
+  title: string,
+  body: string,
+  isoWeekday: number,
+  hour: number,
+  minute: number,
+  channelId = CHANNEL_REMINDERS,
+): Promise<boolean> {
+  const N = getNotifications();
+  if (!N) return false;
+  await N.cancelScheduledNotificationAsync(id).catch(() => {});
+  await N.scheduleNotificationAsync({
+    identifier: id,
+    content: { title, body },
+    trigger: {
+      type: N.SchedulableTriggerInputTypes.WEEKLY,
+      channelId,
+      weekday: (isoWeekday % 7) + 1, // expo-notifications: 1 = Sunday
+      hour,
+      minute,
+    },
+  });
+  return true;
+}
+
+/**
+ * One-shot reminder under a stable id (replaces any previous one with that
+ * id). A date in the past only cancels. Returns false if unavailable.
+ */
+export async function scheduleAt(
+  id: string,
+  title: string,
+  body: string,
+  date: Date,
+  channelId = CHANNEL_REMINDERS,
+): Promise<boolean> {
+  const N = getNotifications();
+  if (!N) return false;
+  await N.cancelScheduledNotificationAsync(id).catch(() => {});
+  if (date.getTime() <= Date.now()) return true;
+  await N.scheduleNotificationAsync({
+    identifier: id,
+    content: { title, body },
+    trigger: { type: N.SchedulableTriggerInputTypes.DATE, channelId, date },
+  });
+  return true;
+}
+
+export async function cancelScheduled(ids: string[]): Promise<void> {
+  const N = getNotifications();
+  if (!N) return;
+  await Promise.all(ids.map((id) => N.cancelScheduledNotificationAsync(id).catch(() => {})));
 }

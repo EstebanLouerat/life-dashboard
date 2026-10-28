@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Text, View } from "react-native";
 import { useSQLiteContext } from "expo-sqlite";
 import { Body, Button, Card, Screen, useTheme } from "@/components/ui";
+import { TreatmentsToday } from "@/components/TreatmentsToday";
 import { hoursBetween, today } from "@/lib/dates";
 
 type OpenSleep = { id: number; bed_at: string } | null;
@@ -76,6 +77,8 @@ export default function TodayScreen() {
 
   return (
     <Screen>
+      <TreatmentsToday />
+
       <Card title="Hydratation">
         <Text style={{ color: t.text, fontSize: 32, fontWeight: "800" }}>
           {(ml / 1000).toFixed(2)} L <Text style={{ color: t.muted, fontSize: 18 }}>/ {(goal / 1000).toFixed(1)} L</Text>

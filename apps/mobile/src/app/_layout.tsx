@@ -12,6 +12,10 @@ function icon(glyph: string) {
   );
 }
 
+/**
+ * Three tabs only: Today (daily one-tap logs), Modules (hub, one stack per
+ * module) and Settings. New modules go in src/app/modules/, not in a new tab.
+ */
 export default function RootLayout() {
   const t = useTheme();
 
@@ -31,8 +35,7 @@ export default function RootLayout() {
         }}
       >
         <Tabs.Screen name="index" options={{ title: "Aujourd'hui", tabBarIcon: icon("☀️") }} />
-        <Tabs.Screen name="courses" options={{ title: "Courses", tabBarIcon: icon("🛒") }} />
-        <Tabs.Screen name="sport" options={{ title: "Sport", tabBarIcon: icon("🤸") }} />
+        <Tabs.Screen name="modules" options={{ title: "Modules", headerShown: false, tabBarIcon: icon("🧩") }} />
         <Tabs.Screen name="reglages" options={{ title: "Réglages", tabBarIcon: icon("⚙️") }} />
       </Tabs>
     </SQLiteProvider>

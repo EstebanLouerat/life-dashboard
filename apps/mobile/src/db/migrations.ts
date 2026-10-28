@@ -52,6 +52,68 @@ const MIGRATIONS: string[] = [
     note TEXT
   );
   `,
+  // 3 — treatments (hair care phase 1). Stock is derived from events, see lib/stock.ts.
+  `
+  CREATE TABLE treatments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    category TEXT NOT NULL DEFAULT 'hair',
+    name TEXT NOT NULL,
+    unit TEXT NOT NULL,                        -- comprimé | gélule | ml
+    package_size REAL,                         -- default quantity of "Nouvelle boîte"
+    waste_pct REAL NOT NULL DEFAULT 0,         -- 0.1 = 10 % margin
+    reminder_time TEXT,                        -- HH:MM local, null = no reminder
+    renewal_lead_days INTEGER NOT NULL DEFAULT 10,
+    prescription_expires_on TEXT,              -- YYYY-MM-DD
+    prescription_lead_days INTEGER NOT NULL DEFAULT 10,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    archived_at TEXT,                          -- never deleted: history stays readable
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  -- one row per dosage change; past rows are never rewritten
+  CREATE TABLE treatment_regimens (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    treatment_id INTEGER NOT NULL REFERENCES treatments(id),
+    effective_from TEXT NOT NULL,              -- YYYY-MM-DD
+    dose_qty REAL NOT NULL,
+    doses_per_day INTEGER NOT NULL DEFAULT 1,
+    frequency TEXT NOT NULL,                   -- daily | weekdays | as_needed
+    weekdays TEXT,                             -- '1,3,5' ISO (1 = Monday)
+    UNIQUE (treatment_id, effective_from)
+  );
+
+  -- check-offs are events; undo stamps undone_at and keeps the row
+  CREATE TABLE treatment_doses (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    treatment_id INTEGER NOT NULL REFERENCES treatments(id),
+    day TEXT NOT NULL,                         -- day the dose counts for
+    slot INTEGER NOT NULL DEFAULT 1,
+    status TEXT NOT NULL DEFAULT 'taken',      -- taken | skipped
+    qty REAL NOT NULL,                         -- dose at logging time, 0 if skipped
+    taken_at TEXT NOT NULL,                    -- ISO time of the tap
+    undone_at TEXT,
+    note TEXT
+  );
+  CREATE UNIQUE INDEX idx_treatment_doses_active
+    ON treatment_doses(treatment_id, day, slot) WHERE undone_at IS NULL;
+  CREATE INDEX idx_treatment_doses_day ON treatment_doses(treatment_id, day);
+
+  CREATE TABLE treatment_stock_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    treatment_id INTEGER NOT NULL REFERENCES treatments(id),
+    kind TEXT NOT NULL,                        -- add | set
+    qty REAL NOT NULL,
+    at TEXT NOT NULL,                          -- ISO
+    note TEXT
+  );
+
+  INSERT INTO treatments (name, unit, package_size, waste_pct, reminder_time, sort_order) VALUES
+    ('Vitamine', 'gélule', 60, 0, '09:00', 1),
+    ('Minoxidil', 'ml', 60, 0.1, '21:00', 2),
+    ('Finastéride', 'comprimé', 80, 0, '09:00', 3);
+  INSERT INTO treatment_regimens (treatment_id, effective_from, dose_qty, doses_per_day, frequency)
+    SELECT id, date('now', 'localtime'), CASE unit WHEN 'ml' THEN 2 ELSE 1 END, 1, 'daily' FROM treatments;
+  `,
 ];
 
 export async function migrate(db: SQLiteDatabase): Promise<void> {

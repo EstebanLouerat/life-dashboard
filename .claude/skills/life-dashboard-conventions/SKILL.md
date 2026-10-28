@@ -33,6 +33,8 @@ Changing an output schema: keep old stored JSON readable (add optional fields, d
 
 - Read `apps/mobile/AGENTS.md`: Expo moves fast, check versioned docs before using an Expo API; use `npx expo install` for native packages.
 - Routes in `src/app/` only; components in `src/components/`, logic in `src/lib/`, DB in `src/db/`. Import with `@/…`.
+- Navigation: three tabs (Aujourd'hui, Modules, Réglages). A new module lives under `src/app/modules/` and is listed in the Modules hub; do not add tabs.
+- Pure logic (no React, no SQLite) goes in its own `src/lib/<name>.ts` with a `<name>.test.ts` next to it, run by `npm test` (`node --test`, Node strips the types). Such modules import each other with relative `./x.ts` paths and use erasable TypeScript only (no `enum`, no `namespace`).
 - UI primitives come from `src/components/ui.tsx` (`Screen`, `Card`, `Button`, `Field`, `Chips`, `useTheme`). Extend them rather than styling ad hoc. Light and dark must both work.
 - **One-tap principle**: any daily log (water, sleep, treatment taken) is one tap from the Today screen, with undo. Never a form.
 - Dates: local `YYYY-MM-DD` from `lib/dates.ts#today()`, timestamps in ISO. Never UTC day boundaries.
@@ -57,6 +59,6 @@ Read `references/modules.md` for each module's scope and current status before s
 
 ## Before calling a task done
 
-- `npm run typecheck` at the repo root passes.
+- `npm run typecheck` and `npm test` at the repo root pass.
 - For mobile changes: `npx expo export --platform android` bundles without errors.
 - For API changes: the route rejects a missing key (401) and an invalid body (400).
