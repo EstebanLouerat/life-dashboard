@@ -31,9 +31,11 @@ import { refreshSubscriptions, subscriptionAlerts, type MoneyAlert } from "@/lib
 import { refreshWishlist, wishlistAlerts } from "@/lib/wishlist";
 
 type OpenSleep = { id: number; bed_at: string } | null;
-type LastNight = { id: number; hours: number; quality: number | null } | null;
+type LastNight = { id: number; hours: number; quality: number | null; wakeAt: string } | null;
 
 const SLEEP_TARGET_HOURS = 8;
+/** A wake-up logged this recently can still be undone from Today (a slip, not a real night). */
+const UNDO_WAKE_MS = 60 * 60 * 1000;
 
 function greeting(hour: number) {
   if (hour < 5) return "Bonne nuit";
@@ -80,7 +82,9 @@ export default function TodayScreen() {
     const last = await db.getFirstAsync<{ id: number; bed_at: string; wake_at: string; quality: number | null }>(
       "SELECT id, bed_at, wake_at, quality FROM sleep_log WHERE wake_at IS NOT NULL ORDER BY id DESC LIMIT 1",
     );
-    setLastNight(last ? { id: last.id, hours: hoursBetween(last.bed_at, last.wake_at), quality: last.quality } : null);
+    setLastNight(
+      last ? { id: last.id, hours: hoursBetween(last.bed_at, last.wake_at), quality: last.quality, wakeAt: last.wake_at } : null,
+    );
 
     setTreatments(await refreshTreatments(db));
     const [subs, wishlist] = await Promise.all([refreshSubscriptions(db), refreshWishlist(db)]);
@@ -93,10 +97,12 @@ export default function TodayScreen() {
     }, [load]),
   );
 
+  // The glass shows on the tap, with the haptic; the write and reload follow.
   const addWater = async () => {
-    await db.runAsync("INSERT INTO hydration_log (day, ml) VALUES (?, ?)", today(), glass);
     if (ml < goal && ml + glass >= goal) haptics.success();
     else haptics.impact();
+    setMl((v) => v + glass);
+    await db.runAsync("INSERT INTO hydration_log (day, ml) VALUES (?, ?)", today(), glass);
     load();
   };
 
@@ -105,6 +111,18 @@ export default function TodayScreen() {
       "DELETE FROM hydration_log WHERE id = (SELECT MAX(id) FROM hydration_log WHERE day = ?)",
       today(),
     );
+    load();
+  };
+
+  const undoBedtime = async () => {
+    if (!openSleep) return;
+    await db.runAsync("DELETE FROM sleep_log WHERE id = ?", openSleep.id);
+    load();
+  };
+
+  const undoWake = async () => {
+    if (!lastNight) return;
+    await db.runAsync("UPDATE sleep_log SET wake_at = NULL WHERE id = ?", lastNight.id);
     load();
   };
 
@@ -125,6 +143,7 @@ export default function TodayScreen() {
   };
 
   const now = new Date();
+  const wakeUndoable = !openSleep && !!lastNight && now.getTime() - Date.parse(lastNight.wakeAt) < UNDO_WAKE_MS;
   const { expected, logged } = dayProgress(treatments, today());
   const left = expected - logged;
   const glasses = Math.min(12, Math.max(1, Math.ceil(goal / glass)));
@@ -227,13 +246,22 @@ export default function TodayScreen() {
         ) : (
           <Txt tone="muted">Aucune nuit enregistrée.</Txt>
         )}
-        <Button
-          label={openSleep ? "Je me lève" : "Je me couche"}
-          icon={openSleep ? "sunny" : "moon"}
-          variant={openSleep ? "primary" : "secondary"}
-          haptic
-          onPress={toggleSleep}
-        />
+        <View style={{ flexDirection: "row", gap: space.sm }}>
+          <View style={{ flex: 1 }}>
+            <Button
+              label={openSleep ? "Je me lève" : "Je me couche"}
+              icon={openSleep ? "sunny" : "moon"}
+              variant={openSleep ? "primary" : "secondary"}
+              haptic
+              onPress={toggleSleep}
+            />
+          </View>
+          {openSleep ? (
+            <IconButton icon="arrow-undo" label="Annuler le coucher" onPress={undoBedtime} />
+          ) : wakeUndoable ? (
+            <IconButton icon="arrow-undo" label="Annuler le réveil" onPress={undoWake} />
+          ) : null}
+        </View>
       </Card>
     </Screen>
   );
@@ -244,7 +272,7 @@ function HeroRing({ label, value, text }: { label: string; value: number; text: 
   return (
     <View style={{ alignItems: "center", gap: space.sm, flex: 1 }}>
       <Ring value={value} size={78} stroke={8} color={t.onHero} trackColor={t.heroTrack} label={label}>
-        <Txt variant="callout" tone="inverse" style={{ fontFamily: font.extrabold }} numberOfLines={1} adjustsFontSizeToFit>
+        <Txt variant="callout" tone="inverse" style={{ fontFamily: font.extrabold, fontVariant: ["tabular-nums"] }} numberOfLines={1} adjustsFontSizeToFit>
           {text}
         </Txt>
       </Ring>

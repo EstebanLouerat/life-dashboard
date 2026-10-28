@@ -63,6 +63,7 @@ export default function WishlistScreen() {
   const [goalInput, setGoalInput] = useState("");
   const [coolingInput, setCoolingInput] = useState("");
   const [rulesSaved, setRulesSaved] = useState(false);
+  const [rulesErrors, setRulesErrors] = useState<{ goal?: string; cooling?: string }>({});
 
   const load = useCallback(async () => {
     const s = await refreshWishlist(db);
@@ -106,7 +107,12 @@ export default function WishlistScreen() {
   const saveRules = async () => {
     const goalCents = goalInput.trim() ? parseEuros(goalInput) : 0;
     const days = Number(coolingInput);
-    if (goalCents === null || !Number.isInteger(days) || days < 0 || days > 365) {
+    const errors = {
+      goal: goalCents === null ? "Montant en euros, par exemple 200." : undefined,
+      cooling: !Number.isInteger(days) || days < 0 || days > 365 ? "Entre 0 et 365 jours." : undefined,
+    };
+    setRulesErrors(errors);
+    if (goalCents === null || errors.cooling) {
       haptics.warning();
       return;
     }
@@ -236,10 +242,24 @@ export default function WishlistScreen() {
       <Card title="Règles" icon="options-outline" color="settings" index={3}>
         <View style={{ flexDirection: "row", gap: space.sm }}>
           <View style={{ flex: 1 }}>
-            <Field label="Épargne visée / mois (€)" value={goalInput} onChangeText={(v) => (setGoalInput(v), setRulesSaved(false))} keyboardType="decimal-pad" placeholder="200" />
+            <Field
+              label="Épargne visée / mois (€)"
+              value={goalInput}
+              onChangeText={(v) => (setGoalInput(v), setRulesSaved(false), setRulesErrors({ ...rulesErrors, goal: undefined }))}
+              keyboardType="decimal-pad"
+              placeholder="200"
+              error={rulesErrors.goal}
+            />
           </View>
           <View style={{ flex: 1 }}>
-            <Field label="Réflexion (jours)" value={coolingInput} onChangeText={(v) => (setCoolingInput(v), setRulesSaved(false))} keyboardType="number-pad" helper="0 = désactivée" />
+            <Field
+              label="Réflexion (jours)"
+              value={coolingInput}
+              onChangeText={(v) => (setCoolingInput(v), setRulesSaved(false), setRulesErrors({ ...rulesErrors, cooling: undefined }))}
+              keyboardType="number-pad"
+              helper="0 = désactivée"
+              error={rulesErrors.cooling}
+            />
           </View>
         </View>
         <Button size="sm" variant="secondary" icon="save-outline" label={rulesSaved ? "Enregistré" : "Enregistrer les règles"} onPress={saveRules} />

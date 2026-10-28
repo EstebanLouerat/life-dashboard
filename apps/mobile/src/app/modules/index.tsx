@@ -16,7 +16,6 @@ import {
   type IconName,
   type ModuleColor,
 } from "@/components/ui";
-import { haptics } from "@/lib/haptics";
 
 type Entry = { href: Href; icon: IconName; color: ModuleColor; title: string; subtitle: string };
 
@@ -56,10 +55,7 @@ export default function ModulesScreen() {
                 <PressableScale
                   accessibilityRole="link"
                   accessibilityLabel={`${e.title}, ${e.subtitle}`}
-                  onPress={() => {
-                    haptics.tap();
-                    router.push(e.href);
-                  }}
+                  onPress={() => router.push(e.href)}
                   style={[
                     {
                       minHeight: 150,

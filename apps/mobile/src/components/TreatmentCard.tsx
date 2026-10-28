@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { Alert, Pressable, View } from "react-native";
-import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
+import Animated from "react-native-reanimated";
 import { router } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import {
   Badge,
   Button,
   Card,
+  conceal,
   Field,
   Icon,
   IconButton,
@@ -14,6 +15,7 @@ import {
   Notice,
   ProgressBar,
   radius,
+  reveal,
   SectionTitle,
   space,
   Stat,
@@ -221,8 +223,9 @@ export function TreatmentCard({ state, onChanged, index }: { state: TreatmentSta
                   accessibilityLabel={`${formatFrDate(c.day)} : ${c.status === "future" ? "à venir" : STATUS_LABEL[c.status]}`}
                   accessibilityState={{ selected: isSelected, disabled }}
                   disabled={disabled}
+                  hitSlop={3}
                   onPress={() => setSelected(isSelected ? null : c.day)}
-                  style={{
+                  style={({ pressed }) => ({
                     aspectRatio: 1,
                     minHeight: 40,
                     borderRadius: radius.sm,
@@ -231,10 +234,11 @@ export function TreatmentCard({ state, onChanged, index }: { state: TreatmentSta
                     backgroundColor: colors.bg,
                     borderWidth: isSelected ? 2.5 : c.day === day ? 1.5 : 0,
                     borderColor: isSelected ? t.text : t.primaryText,
-                    opacity: c.status === "before" ? 0.4 : 1,
-                  }}
+                    opacity: c.status === "before" ? 0.4 : pressed ? 0.7 : 1,
+                    transform: [{ scale: pressed ? 0.92 : 1 }],
+                  })}
                 >
-                  <Txt variant="caption" color={colors.fg}>
+                  <Txt variant="caption" color={colors.fg} maxFontSizeMultiplier={1.3}>
                     {Number(c.day.slice(8))}
                   </Txt>
                 </Pressable>
@@ -255,13 +259,13 @@ export function TreatmentCard({ state, onChanged, index }: { state: TreatmentSta
       </View>
 
       {selectedEntry ? (
-        <Animated.View key={selectedEntry.day} entering={FadeIn.duration(200)} exiting={FadeOut.duration(150)} layout={layoutTransition}>
+        <Animated.View key={selectedEntry.day} entering={reveal} exiting={conceal} layout={layoutTransition}>
           <DayPanel state={state} entry={selectedEntry} onChanged={onChanged} />
         </Animated.View>
       ) : null}
 
       {editingStock || f.remaining === null ? (
-        <Animated.View entering={FadeIn.duration(200)} style={{ gap: space.sm }}>
+        <Animated.View entering={reveal} exiting={conceal} style={{ gap: space.sm }}>
           <Field
             label={`Stock actuel (${tr.unit})`}
             value={stockInput}

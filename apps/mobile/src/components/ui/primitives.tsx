@@ -117,7 +117,7 @@ export function Notice({
   const c = tint(t, tone === "info" ? "primary" : tone);
   return (
     <View
-      accessibilityRole="alert"
+      accessibilityRole={tone === "warning" || tone === "danger" ? "alert" : undefined}
       style={{ flexDirection: "row", gap: 10, backgroundColor: c.soft, borderRadius: radius.md, padding: space.md }}
     >
       <Icon name={NOTICE_ICON[tone]} size={20} color={c.solid} />

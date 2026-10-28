@@ -6,5 +6,6 @@ export * from "./theme";
 export * from "./motion";
 export * from "./primitives";
 export * from "./controls";
+export * from "./form";
 export * from "./layout";
 export * from "./charts";

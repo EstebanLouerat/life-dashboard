@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Alert, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
-import { Button, Card, Chips, Field, Notice, Screen, Segmented, space, Txt } from "@/components/ui";
+import { Button, Card, Chips, Field, FormErrorSummary, Notice, Screen, Segmented, space, Txt, useFormErrors } from "@/components/ui";
 import { formatFrDate, parseFrDate, shortFrDate, today } from "@/lib/dates";
 import { haptics } from "@/lib/haptics";
 import { centsToInput, formatCents, parseEuros } from "@/lib/money";
@@ -42,7 +42,6 @@ export default function SubscriptionEditScreen() {
   const [status, setStatus] = useState<"active" | "cancelled">("active");
   // Keeps the stored anchor when the date field is left as loaded, so a 31st stays a 31st.
   const [loadedAnchor, setLoadedAnchor] = useState<{ text: string; anchorOn: string } | null>(null);
-  const [errors, setErrors] = useState<Errors>({});
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -68,17 +67,12 @@ export default function SubscriptionEditScreen() {
     });
   }, [db, id, isNew]);
 
-  const edit = (key: keyof Errors, set: (v: string) => void) => (v: string) => {
-    set(v);
-    if (errors[key]) setErrors({ ...errors, [key]: undefined });
-  };
-
   const priceCents = parseEuros(price);
   const cycleCount = Number(count);
   const cycle = { unit, count: Number.isInteger(cycleCount) && cycleCount > 0 ? cycleCount : 1 };
   const anchorDay = parseFrDate(anchor);
 
-  const save = async () => {
+  const validate = (): Errors => {
     const trialDay = trial.trim() ? parseFrDate(trial) : null;
     const reminderDays = Number(reminder);
     const next: Errors = {};
@@ -89,11 +83,17 @@ export default function SubscriptionEditScreen() {
     if (trial.trim() && !trialDay) next.trial = "Format JJ/MM/AAAA, ou vide.";
     if (!(Number.isInteger(reminderDays) && reminderDays >= 0 && reminderDays <= 30)) next.reminder = "Entre 0 et 30 jours.";
     if (billing === "direct" && cancelUrl.trim() && !/^https?:\/\//.test(cancelUrl.trim())) next.url = "Adresse complète, commençant par https://";
-    setErrors(next);
-    if (Object.keys(next).length) {
+    return next;
+  };
+  const { errors, edit, blur, submit } = useFormErrors(validate);
+
+  const save = async () => {
+    if (!submit()) {
       haptics.warning();
       return;
     }
+    const trialDay = trial.trim() ? parseFrDate(trial) : null;
+    const reminderDays = Number(reminder);
     setSaving(true);
     try {
       await saveSubscription(
@@ -180,10 +180,10 @@ export default function SubscriptionEditScreen() {
       <Card title="Prix et cycle" icon="cash-outline" color="subs" index={1}>
         <View style={{ flexDirection: "row", gap: space.sm }}>
           <View style={{ flex: 3 }}>
-            <Field label="Prix (€)" value={price} onChangeText={edit("price", setPrice)} keyboardType="decimal-pad" error={errors.price} placeholder="9,99" />
+            <Field label="Prix (€)" value={price} onChangeText={edit("price", setPrice)} onBlur={blur("price", price)} keyboardType="decimal-pad" error={errors.price} placeholder="9,99" />
           </View>
           <View style={{ flex: 2 }}>
-            <Field label="Tous les" value={count} onChangeText={edit("count", setCount)} keyboardType="number-pad" error={errors.count} />
+            <Field label="Tous les" value={count} onChangeText={edit("count", setCount)} onBlur={blur("count", count)} keyboardType="number-pad" error={errors.count} />
           </View>
         </View>
         <Segmented
@@ -200,6 +200,7 @@ export default function SubscriptionEditScreen() {
           helper="JJ/MM/AAAA. Les suivants sont calculés automatiquement."
           value={anchor}
           onChangeText={edit("anchor", setAnchor)}
+          onBlur={blur("anchor", anchor)}
           keyboardType="numbers-and-punctuation"
           error={errors.anchor}
         />
@@ -216,10 +217,11 @@ export default function SubscriptionEditScreen() {
           helper="JJ/MM/AAAA, vide s'il n'y a pas d'essai."
           value={trial}
           onChangeText={edit("trial", setTrial)}
+          onBlur={blur("trial", trial)}
           keyboardType="numbers-and-punctuation"
           error={errors.trial}
         />
-        <Field label="Me prévenir (jours avant)" value={reminder} onChangeText={edit("reminder", setReminder)} keyboardType="number-pad" error={errors.reminder} />
+        <Field label="Me prévenir (jours avant)" value={reminder} onChangeText={edit("reminder", setReminder)} onBlur={blur("reminder", reminder)} keyboardType="number-pad" error={errors.reminder} />
       </Card>
 
       <Card title="Résiliation" icon="exit-outline" color="danger" index={3}>
@@ -236,6 +238,7 @@ export default function SubscriptionEditScreen() {
             label="Page de résiliation"
             value={cancelUrl}
             onChangeText={edit("url", setCancelUrl)}
+            onBlur={blur("url", cancelUrl)}
             autoCapitalize="none"
             autoCorrect={false}
             keyboardType="url"
@@ -250,6 +253,7 @@ export default function SubscriptionEditScreen() {
         <Field label="Notes" value={notes} onChangeText={setNotes} placeholder="Facultatif" multiline />
       </Card>
 
+      <FormErrorSummary errors={errors} />
       <Button label="Enregistrer" icon="checkmark" onPress={save} loading={saving} />
       {!isNew && status === "active" ? (
         <Button

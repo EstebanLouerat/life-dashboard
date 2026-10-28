@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Alert, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
-import { Button, Card, Chips, Field, Notice, Screen, Segmented, space, Txt } from "@/components/ui";
+import { Button, Card, Chips, Field, FormErrorSummary, Notice, Screen, Segmented, space, Txt, useFormErrors } from "@/components/ui";
 import { formatFrDate } from "@/lib/dates";
 import { haptics } from "@/lib/haptics";
 import { centsToInput, formatCents, parseEuros } from "@/lib/money";
@@ -39,7 +39,6 @@ export default function WishEditScreen() {
   const [notes, setNotes] = useState("");
   const [cooling, setCooling] = useState<"yes" | "no">("yes");
   const [paid, setPaid] = useState("");
-  const [errors, setErrors] = useState<Errors>({});
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -61,24 +60,24 @@ export default function WishEditScreen() {
     });
   }, [db, id, isNew]);
 
-  const edit = (key: keyof Errors, set: (v: string) => void) => (v: string) => {
-    set(v);
-    if (errors[key]) setErrors({ ...errors, [key]: undefined });
-  };
-
-  const save = async () => {
+  const validate = (): Errors => {
     const priceCents = parseEuros(price);
-    const finalCategory = newCategory.trim() || category;
     const next: Errors = {};
     if (!name.trim()) next.name = "Donne un nom.";
     if (priceCents === null || priceCents <= 0) next.price = "Prix en euros, par exemple 129,99.";
-    if (!finalCategory) next.category = "Choisis ou crée une catégorie.";
+    if (!(newCategory.trim() || category)) next.category = "Choisis ou crée une catégorie.";
     if (url.trim() && !/^https?:\/\//.test(url.trim())) next.url = "Adresse complète, commençant par https://";
-    setErrors(next);
-    if (Object.keys(next).length) {
+    return next;
+  };
+  const { errors, setErrors, edit, blur, submit } = useFormErrors(validate);
+
+  const save = async () => {
+    if (!submit()) {
       haptics.warning();
       return;
     }
+    const priceCents = parseEuros(price);
+    const finalCategory = newCategory.trim() || category;
     setSaving(true);
     try {
       await saveWish(
@@ -142,7 +141,7 @@ export default function WishEditScreen() {
     <Screen back title={isNew ? "Nouvelle envie" : name || "Envie"}>
       <Card title="Envie" icon="gift-outline" color="wish" index={0}>
         <Field label="Nom" value={name} onChangeText={edit("name", setName)} error={errors.name} placeholder="ex. Écran 27 pouces" />
-        <Field label="Prix (€)" value={price} onChangeText={edit("price", setPrice)} keyboardType="decimal-pad" error={errors.price} placeholder="249,99" />
+        <Field label="Prix (€)" value={price} onChangeText={edit("price", setPrice)} onBlur={blur("price", price)} keyboardType="decimal-pad" error={errors.price} placeholder="249,99" />
         <View style={{ gap: 6 }}>
           <Txt variant="caption" tone="muted">
             Priorité
@@ -174,6 +173,7 @@ export default function WishEditScreen() {
           label="Lien"
           value={url}
           onChangeText={edit("url", setUrl)}
+          onBlur={blur("url", url)}
           autoCapitalize="none"
           autoCorrect={false}
           keyboardType="url"
@@ -222,6 +222,7 @@ export default function WishEditScreen() {
         </Card>
       ) : null}
 
+      <FormErrorSummary errors={errors} />
       <Button label="Enregistrer" icon="checkmark" onPress={save} loading={saving} />
 
       {item?.status === "wanted" ? (

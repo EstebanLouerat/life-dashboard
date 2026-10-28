@@ -96,15 +96,20 @@ export const font = {
   extrabold: "PlusJakartaSans_800ExtraBold",
 } as const;
 
+/**
+ * Tracking follows size: tighter as type grows, slightly open below 14 px.
+ * Leading does the reverse (about 1.1 for display, 1.5 for body). Figures
+ * that change in place (stats, gauges) use tabular digits so they don't jitter.
+ */
 export const typography = {
-  display: { fontFamily: font.extrabold, fontSize: 32, lineHeight: 38, letterSpacing: -0.6 },
-  title: { fontFamily: font.bold, fontSize: 22, lineHeight: 28, letterSpacing: -0.3 },
+  display: { fontFamily: font.extrabold, fontSize: 32, lineHeight: 36, letterSpacing: -0.6 },
+  title: { fontFamily: font.bold, fontSize: 22, lineHeight: 28, letterSpacing: -0.3, fontVariant: ["tabular-nums"] },
   number: { fontFamily: font.extrabold, fontSize: 28, lineHeight: 34, letterSpacing: -0.5, fontVariant: ["tabular-nums"] },
-  headline: { fontFamily: font.bold, fontSize: 17, lineHeight: 22 },
+  headline: { fontFamily: font.bold, fontSize: 17, lineHeight: 22, letterSpacing: -0.2 },
   body: { fontFamily: font.regular, fontSize: 16, lineHeight: 24 },
   bodyStrong: { fontFamily: font.semibold, fontSize: 16, lineHeight: 24 },
   callout: { fontFamily: font.medium, fontSize: 15, lineHeight: 21 },
-  caption: { fontFamily: font.medium, fontSize: 13, lineHeight: 18 },
+  caption: { fontFamily: font.medium, fontSize: 13, lineHeight: 18, letterSpacing: 0.1 },
   overline: { fontFamily: font.bold, fontSize: 12, lineHeight: 16, letterSpacing: 0.8, textTransform: "uppercase" },
 } satisfies Record<string, TextStyle>;
 
@@ -126,6 +131,15 @@ export function tint(t: Theme, name: Tint): { solid: string; soft: string } {
     default:
       return t.module[name];
   }
+}
+
+/**
+ * A `#RRGGBB` token with an alpha channel. Gradients fade a colour to its own
+ * transparent version: plain "transparent" is transparent black on Android
+ * and leaves a grey band.
+ */
+export function withAlpha(hex: string, alpha: number): string {
+  return hex + Math.round(alpha * 255).toString(16).padStart(2, "0");
 }
 
 /** Soft elevation in light mode; dark mode relies on tonal surfaces instead. */

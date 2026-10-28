@@ -1,28 +1,19 @@
 import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, TextInput, View, type TextInputProps } from "react-native";
-import Animated, { useAnimatedStyle, useSharedValue, withSequence, withTiming } from "react-native-reanimated";
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { haptics } from "@/lib/haptics";
-import { popIn, PRESSED_SCALE, timing } from "./motion";
+import { popIn, timing, usePressScale } from "./motion";
 import { Icon, Txt, type IconName } from "./primitives";
 import { radius, space, typography, useTheme } from "./theme";
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
-function usePressScale(to = PRESSED_SCALE) {
-  const scale = useSharedValue(1);
-  const style = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
-  return {
-    style,
-    onPressIn: () => {
-      scale.value = withTiming(to, timing.press);
-    },
-    onPressOut: () => {
-      scale.value = withTiming(1, timing.release);
-    },
-  };
-}
 
 type ButtonVariant = "primary" | "secondary" | "soft" | "ghost" | "danger";
 
+/**
+ * `haptic` is off by default: the outcome of the action (success, warning)
+ * gives the feedback, so a save does not buzz twice.
+ */
 export function Button({
   label,
   onPress,
@@ -31,7 +22,7 @@ export function Button({
   icon,
   loading,
   disabled,
-  haptic = variant === "primary",
+  haptic = false,
 }: {
   label: string;
   onPress: () => void;
@@ -101,12 +92,14 @@ export function IconButton({
   onPress,
   variant = "surface",
   disabled,
+  haptic = false,
 }: {
   icon: IconName;
   label: string;
   onPress: () => void;
   variant?: "surface" | "soft" | "ghost";
   disabled?: boolean;
+  haptic?: boolean;
 }) {
   const t = useTheme();
   const press = usePressScale(0.95);
@@ -122,7 +115,7 @@ export function IconButton({
       onPressIn={press.onPressIn}
       onPressOut={press.onPressOut}
       onPress={() => {
-        haptics.tap();
+        if (haptic) haptics.tap();
         onPress();
       }}
       style={[
@@ -250,31 +243,40 @@ export function Segmented<T extends string>({
           ]}
         />
       ) : null}
-      {options.map((o) => {
-        const active = o.value === value;
-        return (
-          <Pressable
-            key={o.value}
-            accessibilityRole="radio"
-            accessibilityState={{ selected: active }}
-            onPress={() => {
-              haptics.tap();
-              onChange(o.value);
-            }}
-            style={{ flex: 1, minHeight: 44, alignItems: "center", justifyContent: "center", paddingHorizontal: 4 }}
-          >
-            <Txt
-              variant="callout"
-              numberOfLines={1}
-              color={active ? t.onPrimary : t.text}
-              style={{ fontFamily: typography.bodyStrong.fontFamily }}
-            >
-              {o.label}
-            </Txt>
-          </Pressable>
-        );
-      })}
+      {options.map((o) => (
+        <SegmentOption
+          key={o.value}
+          label={o.label}
+          active={o.value === value}
+          onPress={() => {
+            if (o.value === value) return;
+            haptics.tap();
+            onChange(o.value);
+          }}
+        />
+      ))}
     </View>
+  );
+}
+
+function SegmentOption({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
+  const t = useTheme();
+  const press = usePressScale(0.94);
+  return (
+    <Pressable
+      accessibilityRole="radio"
+      accessibilityState={{ selected: active }}
+      onPressIn={press.onPressIn}
+      onPressOut={press.onPressOut}
+      onPress={onPress}
+      style={{ flex: 1, minHeight: 44, alignItems: "center", justifyContent: "center", paddingHorizontal: 4 }}
+    >
+      <Animated.View style={press.style}>
+        <Txt variant="callout" numberOfLines={1} color={active ? t.onPrimary : t.text} style={{ fontFamily: typography.bodyStrong.fontFamily }}>
+          {label}
+        </Txt>
+      </Animated.View>
+    </Pressable>
   );
 }
 
@@ -287,10 +289,7 @@ function Chip({ label, active, onPress }: { label: string; active: boolean; onPr
       accessibilityState={{ selected: active }}
       onPressIn={press.onPressIn}
       onPressOut={press.onPressOut}
-      onPress={() => {
-        haptics.tap();
-        onPress();
-      }}
+      onPress={onPress}
       style={[
         {
           minHeight: 44,
@@ -323,7 +322,16 @@ export function Chips<T extends string>({
   return (
     <View style={{ flexDirection: "row", flexWrap: "wrap", gap: space.sm }}>
       {options.map((o) => (
-        <Chip key={o.value} label={o.label} active={o.value === value} onPress={() => onChange(o.value)} />
+        <Chip
+          key={o.value}
+          label={o.label}
+          active={o.value === value}
+          onPress={() => {
+            if (o.value === value) return;
+            haptics.tap();
+            onChange(o.value);
+          }}
+        />
       ))}
     </View>
   );
@@ -347,7 +355,10 @@ export function MultiChips<T extends string>({
             key={o.value}
             label={o.label}
             active={active}
-            onPress={() => onChange(active ? value.filter((v) => v !== o.value) : [...value, o.value])}
+            onPress={() => {
+              haptics.tap();
+              onChange(active ? value.filter((v) => v !== o.value) : [...value, o.value]);
+            }}
           />
         );
       })}
@@ -357,7 +368,9 @@ export function MultiChips<T extends string>({
 
 /**
  * Round one-tap check. "done" pops a check mark, "skipped" a cross.
- * Pressing an empty circle logs; a filled one is display-only.
+ * Pressing an empty circle logs; a filled one is display-only. The check
+ * shows on the press itself, with the haptic, and the parent's reload
+ * confirms it a moment later; a failed `onPress` puts the circle back.
  */
 export function CheckCircle({
   state,
@@ -366,23 +379,27 @@ export function CheckCircle({
 }: {
   state: "empty" | "done" | "skipped";
   label: string;
-  onPress?: () => void;
+  onPress?: () => void | Promise<unknown>;
 }) {
   const t = useTheme();
-  const scale = useSharedValue(1);
-  const animated = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
-  const bg = state === "done" ? t.success : state === "skipped" ? t.warningSoft : "transparent";
+  const press = usePressScale(0.9);
+  const [optimistic, setOptimistic] = useState(false);
+  useEffect(() => setOptimistic(false), [state]);
+  const shown = optimistic ? "done" : state;
+  const bg = shown === "done" ? t.success : shown === "skipped" ? t.warningSoft : "transparent";
   return (
     <AnimatedPressable
       accessibilityRole="button"
       accessibilityLabel={label}
-      accessibilityState={{ checked: state === "done", disabled: state !== "empty" }}
-      disabled={state !== "empty" || !onPress}
+      accessibilityState={{ checked: shown === "done", disabled: shown !== "empty" }}
+      disabled={shown !== "empty" || !onPress}
       hitSlop={4}
+      onPressIn={press.onPressIn}
+      onPressOut={press.onPressOut}
       onPress={() => {
-        scale.value = withSequence(withTiming(0.92, timing.press), withTiming(1, timing.release));
+        setOptimistic(true);
         haptics.success();
-        onPress?.();
+        Promise.resolve(onPress?.()).catch(() => setOptimistic(false));
       }}
       style={[
         {
@@ -392,17 +409,17 @@ export function CheckCircle({
           alignItems: "center",
           justifyContent: "center",
           backgroundColor: bg,
-          borderWidth: state === "empty" ? 2 : 0,
+          borderWidth: shown === "empty" ? 2 : 0,
           borderColor: t.textMuted,
         },
-        animated,
+        press.style,
       ]}
     >
-      {state === "done" ? (
+      {shown === "done" ? (
         <Animated.View entering={popIn}>
           <Icon name="checkmark" size={24} color={t.onSuccess} />
         </Animated.View>
-      ) : state === "skipped" ? (
+      ) : shown === "skipped" ? (
         <Animated.View entering={popIn}>
           <Icon name="close" size={22} color={t.warning} />
         </Animated.View>

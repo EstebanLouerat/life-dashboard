@@ -18,6 +18,7 @@ export default function SettingsScreen() {
   const [glass, setGlass] = useState("250");
   const [backendStatus, setBackendStatus] = useState<Status>(null);
   const [hydrationStatus, setHydrationStatus] = useState<Status>(null);
+  const [hydrationErrors, setHydrationErrors] = useState<{ goal?: string; glass?: string }>({});
   const [reminderStatus, setReminderStatus] = useState<Status>(null);
   const [testing, setTesting] = useState(false);
 
@@ -59,11 +60,20 @@ export default function SettingsScreen() {
   };
 
   const saveHydration = async () => {
-    await db.runAsync(
-      "INSERT OR REPLACE INTO settings (key, value) VALUES ('hydration_goal_ml', ?)",
-      String(Number(goal) || 2000),
-    );
-    await db.runAsync("INSERT OR REPLACE INTO settings (key, value) VALUES ('glass_ml', ?)", String(Number(glass) || 250));
+    const goalMl = Number(goal);
+    const glassMl = Number(glass);
+    const errors = {
+      goal: Number.isInteger(goalMl) && goalMl >= 250 && goalMl <= 10000 ? undefined : "Entre 250 et 10 000 ml.",
+      glass: Number.isInteger(glassMl) && glassMl >= 50 && glassMl <= 2000 ? undefined : "Entre 50 et 2 000 ml.",
+    };
+    setHydrationErrors(errors);
+    if (errors.goal || errors.glass) {
+      haptics.warning();
+      setHydrationStatus(null);
+      return;
+    }
+    await db.runAsync("INSERT OR REPLACE INTO settings (key, value) VALUES ('hydration_goal_ml', ?)", String(goalMl));
+    await db.runAsync("INSERT OR REPLACE INTO settings (key, value) VALUES ('glass_ml', ?)", String(glassMl));
     haptics.success();
     setHydrationStatus({ tone: "success", text: "Enregistré." });
   };
@@ -122,10 +132,22 @@ export default function SettingsScreen() {
       <Card title="Hydratation" icon="water" color="water" index={2}>
         <View style={{ flexDirection: "row", gap: space.sm }}>
           <View style={{ flex: 1 }}>
-            <Field label="Objectif (ml)" value={goal} onChangeText={setGoal} keyboardType="number-pad" />
+            <Field
+              label="Objectif (ml)"
+              value={goal}
+              onChangeText={(v) => (setGoal(v), setHydrationErrors({ ...hydrationErrors, goal: undefined }))}
+              keyboardType="number-pad"
+              error={hydrationErrors.goal}
+            />
           </View>
           <View style={{ flex: 1 }}>
-            <Field label="Un verre (ml)" value={glass} onChangeText={setGlass} keyboardType="number-pad" />
+            <Field
+              label="Un verre (ml)"
+              value={glass}
+              onChangeText={(v) => (setGlass(v), setHydrationErrors({ ...hydrationErrors, glass: undefined }))}
+              keyboardType="number-pad"
+              error={hydrationErrors.glass}
+            />
           </View>
         </View>
         <Button label="Enregistrer" variant="secondary" icon="save-outline" onPress={saveHydration} />

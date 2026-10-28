@@ -101,16 +101,18 @@ export default function CoursesScreen() {
 
   const toggle = async (name: string) => {
     if (!plan) return;
+    // Shown on the tap, with the haptic; the write follows.
     haptics.tap();
     const next = new Set(checked);
-    if (next.has(name)) {
-      next.delete(name);
+    const wasChecked = next.has(name);
+    if (wasChecked) next.delete(name);
+    else next.add(name);
+    setChecked(next);
+    if (wasChecked) {
       await db.runAsync("DELETE FROM grocery_checks WHERE plan_id = ? AND item_name = ?", plan.id, name);
     } else {
-      next.add(name);
       await db.runAsync("INSERT OR IGNORE INTO grocery_checks (plan_id, item_name) VALUES (?, ?)", plan.id, name);
     }
-    setChecked(next);
   };
 
   const byAisle = useMemo(() => {

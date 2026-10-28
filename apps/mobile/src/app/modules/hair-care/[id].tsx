@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Alert, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
-import { Button, Card, Field, MultiChips, Screen, Segmented, space, Txt } from "@/components/ui";
+import { Button, Card, Field, FormErrorSummary, MultiChips, Screen, Segmented, space, Txt, useFormErrors } from "@/components/ui";
 import { formatFrDate, parseFrDate } from "@/lib/dates";
 import { haptics } from "@/lib/haptics";
 import type { Frequency } from "@/lib/stock";
@@ -44,7 +44,6 @@ export default function TreatmentEditScreen() {
   const [renewalLead, setRenewalLead] = useState("10");
   const [rxExpires, setRxExpires] = useState("");
   const [rxLead, setRxLead] = useState("10");
-  const [errors, setErrors] = useState<Errors>({});
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -70,13 +69,7 @@ export default function TreatmentEditScreen() {
     });
   }, [db, id, isNew]);
 
-  /** Clears a field's error as soon as it is edited. */
-  const edit = (key: keyof Errors, set: (v: string) => void) => (v: string) => {
-    set(v);
-    if (errors[key]) setErrors({ ...errors, [key]: undefined });
-  };
-
-  const save = async () => {
+  const validate = (): Errors => {
     const dose = num(doseQty);
     const perDay = num(dosesPerDay);
     const size = packageSize.trim() ? num(packageSize) : null;
@@ -97,11 +90,23 @@ export default function TreatmentEditScreen() {
     if (!isWholeDays(lead)) next.lead = "Nombre de jours entier.";
     if (rxExpires.trim() && !rxDay) next.rx = "Format JJ/MM/AAAA, par exemple 31/12/2026.";
     if (!isWholeDays(rxLeadDays)) next.rxLead = "Nombre de jours entier.";
-    setErrors(next);
-    if (Object.keys(next).length) {
+    return next;
+  };
+  const { errors, setErrors, edit, blur, submit } = useFormErrors(validate);
+
+  const save = async () => {
+    if (!submit()) {
       haptics.warning();
       return;
     }
+    const dose = num(doseQty);
+    const perDay = num(dosesPerDay);
+    const size = packageSize.trim() ? num(packageSize) : null;
+    const waste = num(wastePct);
+    const lead = num(renewalLead);
+    const rxLeadDays = num(rxLead);
+    const rxDay = rxExpires.trim() ? parseFrDate(rxExpires) : null;
+    const time = reminderTime.trim();
 
     setSaving(true);
     try {
@@ -159,6 +164,7 @@ export default function TreatmentEditScreen() {
               label={`Par prise (${unit})`}
               value={doseQty}
               onChangeText={edit("dose", setDoseQty)}
+              onBlur={blur("dose", doseQty)}
               keyboardType="decimal-pad"
               error={errors.dose}
             />
@@ -168,6 +174,7 @@ export default function TreatmentEditScreen() {
               label={unit === "ml" ? "Applications / jour" : "Prises / jour"}
               value={dosesPerDay}
               onChangeText={edit("perDay", setDosesPerDay)}
+              onBlur={blur("perDay", dosesPerDay)}
               keyboardType="number-pad"
               error={errors.perDay}
             />
@@ -210,6 +217,7 @@ export default function TreatmentEditScreen() {
             helper="Laisse vide pour ne pas être rappelé."
             value={reminderTime}
             onChangeText={edit("time", setReminderTime)}
+            onBlur={blur("time", reminderTime)}
             keyboardType="numbers-and-punctuation"
             placeholder="09:00"
             error={errors.time}
@@ -222,15 +230,16 @@ export default function TreatmentEditScreen() {
           label={`Taille d'un${unit === "ml" ? "" : "e"} ${packageWord} (${unit})`}
           value={packageSize}
           onChangeText={edit("size", setPackageSize)}
+          onBlur={blur("size", packageSize)}
           keyboardType="decimal-pad"
           error={errors.size}
         />
         <View style={{ flexDirection: "row", gap: space.sm }}>
           <View style={{ flex: 1 }}>
-            <Field label="Marge de perte (%)" value={wastePct} onChangeText={edit("waste", setWastePct)} keyboardType="decimal-pad" error={errors.waste} />
+            <Field label="Marge de perte (%)" value={wastePct} onChangeText={edit("waste", setWastePct)} onBlur={blur("waste", wastePct)} keyboardType="decimal-pad" error={errors.waste} />
           </View>
           <View style={{ flex: 1 }}>
-            <Field label="Alerte (jours avant)" value={renewalLead} onChangeText={edit("lead", setRenewalLead)} keyboardType="number-pad" error={errors.lead} />
+            <Field label="Alerte (jours avant)" value={renewalLead} onChangeText={edit("lead", setRenewalLead)} onBlur={blur("lead", renewalLead)} keyboardType="number-pad" error={errors.lead} />
           </View>
         </View>
       </Card>
@@ -241,13 +250,15 @@ export default function TreatmentEditScreen() {
           helper="JJ/MM/AAAA, vide si pas d'ordonnance."
           value={rxExpires}
           onChangeText={edit("rx", setRxExpires)}
+          onBlur={blur("rx", rxExpires)}
           keyboardType="numbers-and-punctuation"
           placeholder="31/12/2026"
           error={errors.rx}
         />
-        <Field label="Alerte (jours avant)" value={rxLead} onChangeText={edit("rxLead", setRxLead)} keyboardType="number-pad" error={errors.rxLead} />
+        <Field label="Alerte (jours avant)" value={rxLead} onChangeText={edit("rxLead", setRxLead)} onBlur={blur("rxLead", rxLead)} keyboardType="number-pad" error={errors.rxLead} />
       </Card>
 
+      <FormErrorSummary errors={errors} />
       <Button label="Enregistrer" icon="checkmark" onPress={save} loading={saving} />
       {!isNew ? <Button label="Archiver" icon="archive-outline" variant="danger" onPress={archive} /> : null}
     </Screen>
