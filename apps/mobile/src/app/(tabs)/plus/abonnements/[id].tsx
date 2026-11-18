@@ -163,7 +163,7 @@ export default function SubscriptionEditScreen() {
 
   return (
     <Screen back title={isNew ? "Nouvel abonnement" : name || "Abonnement"} subtitle={status === "cancelled" ? "Résilié" : undefined}>
-      <Card title="Abonnement" icon="card-outline" color="subs" index={0}>
+      <Card title="Abonnement" icon="card-outline" color="epargne" index={0}>
         <Field label="Nom" value={name} onChangeText={edit("name", setName)} error={errors.name} placeholder="ex. Netflix" />
         <View style={{ gap: 6 }}>
           <Txt variant="caption" tone="muted">
@@ -177,7 +177,7 @@ export default function SubscriptionEditScreen() {
         </View>
       </Card>
 
-      <Card title="Prix et cycle" icon="cash-outline" color="subs" index={1}>
+      <Card title="Prix et cycle" icon="cash-outline" color="epargne" index={1}>
         <View style={{ flexDirection: "row", gap: space.sm }}>
           <View style={{ flex: 3 }}>
             <Field label="Prix (€)" value={price} onChangeText={edit("price", setPrice)} onBlur={blur("price", price)} keyboardType="decimal-pad" error={errors.price} placeholder="9,99" />
@@ -211,7 +211,7 @@ export default function SubscriptionEditScreen() {
         ) : null}
       </Card>
 
-      <Card title="Rappels" icon="notifications-outline" color="primary" index={2}>
+      <Card title="Rappels" icon="notifications-outline" color="encre" index={2}>
         <Field
           label="Fin de l'essai gratuit"
           helper="JJ/MM/AAAA, vide s'il n'y a pas d'essai."

@@ -139,7 +139,7 @@ export default function WishEditScreen() {
 
   return (
     <Screen back title={isNew ? "Nouvelle envie" : name || "Envie"}>
-      <Card title="Envie" icon="gift-outline" color="wish" index={0}>
+      <Card title="Envie" icon="gift-outline" color="epargne" index={0}>
         <Field label="Nom" value={name} onChangeText={edit("name", setName)} error={errors.name} placeholder="ex. Écran 27 pouces" />
         <Field label="Prix (€)" value={price} onChangeText={edit("price", setPrice)} onBlur={blur("price", price)} keyboardType="decimal-pad" error={errors.price} placeholder="249,99" />
         <View style={{ gap: 6 }}>
@@ -168,7 +168,7 @@ export default function WishEditScreen() {
         </View>
       </Card>
 
-      <Card title="Détails" icon="link-outline" color="primary" index={1}>
+      <Card title="Détails" icon="link-outline" color="encre" index={1}>
         <Field
           label="Lien"
           value={url}
@@ -226,7 +226,7 @@ export default function WishEditScreen() {
       <Button label="Enregistrer" icon="checkmark" onPress={save} loading={saving} />
 
       {item?.status === "wanted" ? (
-        <Card title="Décision" icon="flag-outline" color="wish" index={3}>
+        <Card title="Décision" icon="flag-outline" color="epargne" index={3}>
           <Field label="Prix payé (€)" value={paid} onChangeText={edit("paid", setPaid)} keyboardType="decimal-pad" error={errors.paid} />
           <View style={{ flexDirection: "row", gap: space.sm }}>
             <View style={{ flex: 1 }}>

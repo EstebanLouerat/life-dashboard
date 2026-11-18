@@ -61,7 +61,7 @@ export function LevelIndicator({ pose, onLevelChange }: { pose: "upright" | "fla
   }, [pose, x, y]);
 
   const bubble = useAnimatedStyle(() => ({ transform: [{ translateX: x.value }, { translateY: y.value }] }));
-  const color = level ? t.success : t.media.fg;
+  const color = level ? t.media.ok : t.media.fg;
 
   return (
     <View

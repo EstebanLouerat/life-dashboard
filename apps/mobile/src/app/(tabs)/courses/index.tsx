@@ -127,7 +127,7 @@ export default function CoursesScreen() {
 
   return (
     <Screen back title="Courses" subtitle="Menu de la semaine et liste par rayon">
-      <Card title="Nouvelle semaine" icon="sparkles" color="groceries" index={0}>
+      <Card title="Nouvelle semaine" icon="sparkles" color="courses" index={0}>
         <View style={{ flexDirection: "row", gap: space.sm }}>
           <View style={{ flex: 1 }}>
             <Field label="Jours" value={days} onChangeText={setDays} keyboardType="number-pad" />
@@ -157,11 +157,11 @@ export default function CoursesScreen() {
             title="Liste"
             subtitle={`${checked.size}/${total} dans le panier`}
             icon="cart"
-            color="groceries"
+            color="courses"
             index={1}
-            right={<Badge label={`≈ ${euros(plan.data.totalEstEur)}`} color={plan.data.withinBudget ? "success" : "warning"} />}
+            right={<Badge label={`≈ ${euros(plan.data.totalEstEur)}`} color={plan.data.withinBudget ? "sante" : "warning"} />}
           >
-            <ProgressBar value={total ? checked.size / total : 0} color={t.module.groceries.solid} label="Articles cochés" />
+            <ProgressBar value={total ? checked.size / total : 0} color={t.domain.courses.accentText} label="Articles cochés" />
             <Txt variant="caption" tone="muted">
               {plan.data.withinBudget ? "Dans le budget" : "Au-dessus du budget"} · prix estimés, à affiner avec tes tickets
             </Txt>
@@ -186,14 +186,14 @@ export default function CoursesScreen() {
                           borderRadius: radius.sm - 2,
                           borderWidth: done ? 0 : 2,
                           borderColor: t.textMuted,
-                          backgroundColor: done ? t.module.groceries.solid : "transparent",
+                          backgroundColor: done ? t.domain.courses.accentText : "transparent",
                           alignItems: "center",
                           justifyContent: "center",
                         }}
                       >
                         {done ? (
                           <Animated.View entering={popIn}>
-                            <Icon name="checkmark" size={18} color={t.dark ? t.bg : t.onPrimary} />
+                            <Icon name="checkmark" size={18} color={t.dark ? t.bg : t.domain.encre.onAccent} />
                           </Animated.View>
                         ) : null}
                       </View>
@@ -215,10 +215,10 @@ export default function CoursesScreen() {
             ))}
           </Card>
 
-          <Card title="Menu" icon="restaurant" color="groceries" index={2}>
+          <Card title="Menu" icon="restaurant" color="courses" index={2}>
             {plan.data.meals.map((m) => (
               <View key={`${m.day}-${m.slot}`} style={{ flexDirection: "row", gap: space.md, alignItems: "center", minHeight: 48 }}>
-                <Badge label={`J${m.day}`} color="groceries" />
+                <Badge label={`J${m.day}`} color="courses" />
                 <Icon name={m.slot === "dejeuner" ? "sunny-outline" : "moon-outline"} size={18} color={t.textMuted} />
                 <View style={{ flex: 1 }}>
                   <Txt variant="bodyStrong">{m.title}</Txt>

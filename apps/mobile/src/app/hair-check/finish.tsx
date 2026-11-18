@@ -37,7 +37,7 @@ export default function HairCheckFinishScreen() {
 
   return (
     <Screen back title="Dernière étape" subtitle="Ajoute ce que tu as remarqué ce mois-ci">
-      <Card title="Photos" icon="images-outline" color="care" index={0}>
+      <Card title="Photos" icon="images-outline" color="sante" index={0}>
         <View style={{ flexDirection: "row", gap: space.sm }}>
           {ZONES.map((z) => {
             const photo = current?.photos.find((p) => p.zone === z);
@@ -77,7 +77,7 @@ export default function HairCheckFinishScreen() {
         ) : null}
       </Card>
 
-      <Card title="Notes" icon="create-outline" color="primary" index={1}>
+      <Card title="Notes" icon="create-outline" color="encre" index={1}>
         <Field label="Observations" value={notes} onChangeText={setNotes} placeholder="Facultatif" multiline />
         <Field
           label="Effets secondaires"

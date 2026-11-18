@@ -150,7 +150,7 @@ export default function TreatmentEditScreen() {
 
   return (
     <Screen back title={isNew ? "Nouveau traitement" : name || "Traitement"} subtitle={isNew ? undefined : "Modifier le traitement"}>
-      <Card title="Posologie" icon="medkit-outline" color="care" index={0}>
+      <Card title="Posologie" icon="medkit-outline" color="sante" index={0}>
         <Field label="Nom" value={name} onChangeText={edit("name", setName)} error={errors.name} />
         <View style={{ gap: 6 }}>
           <Txt variant="caption" tone="muted">
@@ -211,7 +211,7 @@ export default function TreatmentEditScreen() {
       </Card>
 
       {frequency !== "as_needed" ? (
-        <Card title="Rappel" icon="notifications-outline" color="primary" index={1}>
+        <Card title="Rappel" icon="notifications-outline" color="encre" index={1}>
           <Field
             label="Heure du rappel"
             helper="Laisse vide pour ne pas être rappelé."
@@ -225,7 +225,7 @@ export default function TreatmentEditScreen() {
         </Card>
       ) : null}
 
-      <Card title="Stock" icon="cube-outline" color="care" index={2}>
+      <Card title="Stock" icon="cube-outline" color="sante" index={2}>
         <Field
           label={`Taille d'un${unit === "ml" ? "" : "e"} ${packageWord} (${unit})`}
           value={packageSize}
@@ -244,7 +244,7 @@ export default function TreatmentEditScreen() {
         </View>
       </Card>
 
-      <Card title="Ordonnance" icon="document-text-outline" color="primary" index={3}>
+      <Card title="Ordonnance" icon="document-text-outline" color="encre" index={3}>
         <Field
           label="Expiration"
           helper="JJ/MM/AAAA, vide si pas d'ordonnance."

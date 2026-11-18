@@ -46,7 +46,7 @@ import {
   type WishStatus,
 } from "@/lib/wishlist";
 
-const PRIORITY_COLOR: Record<Priority, Tint> = { 1: "settings", 2: "primary", 3: "danger" };
+const PRIORITY_COLOR: Record<Priority, Tint> = { 1: "encre", 2: "primary", 3: "danger" };
 
 const monthName = (month: string, style: "long" | "short" = "long") =>
   atLocalTime(`${month}-15`, 12).toLocaleDateString("fr-FR", { month: style });
@@ -126,7 +126,7 @@ export default function WishlistScreen() {
 
   return (
     <Screen back title="Wishlist" subtitle="Envies, épargne et temps de réflexion">
-      <Card title="Épargne" icon="wallet" color="wish" index={0}>
+      <Card title="Épargne" icon="wallet" color="epargne" index={0}>
         {state.balanceCents === null ? (
           <Notice tone="info">Saisis ton solde d'épargne pour savoir quand tu pourras t'offrir chaque envie.</Notice>
         ) : (
@@ -148,7 +148,7 @@ export default function WishlistScreen() {
             </View>
             <ProgressBar
               value={(state.savedThisMonthCents ?? 0) / goal}
-              color={(state.savedThisMonthCents ?? 0) >= goal ? t.success : t.module.wish.solid}
+              color={(state.savedThisMonthCents ?? 0) >= goal ? t.domain.sante.accentText : t.domain.epargne.accentText}
               label="Objectif d'épargne du mois"
             />
           </View>
@@ -158,8 +158,8 @@ export default function WishlistScreen() {
           <MiniBars
             data={saved.map((m) => ({ label: monthName(m.month, "short"), value: m.savedCents }))}
             goal={goal || undefined}
-            color={t.module.wish.solid}
-            reachedColor={t.success}
+            color={t.domain.epargne.accentText}
+            reachedColor={t.domain.sante.accentText}
           />
         ) : null}
 
@@ -184,7 +184,7 @@ export default function WishlistScreen() {
       </Card>
 
       {state.items.length ? (
-        <Card title="Bilan" icon="stats-chart" color="wish" index={1}>
+        <Card title="Bilan" icon="stats-chart" color="epargne" index={1}>
           <StatGrid>
             <Stat label="Envies en cours" value={formatCents(sum(wanted.map((i) => i.priceCents)), true)} hint={`${wanted.length} envie${wanted.length > 1 ? "s" : ""}`} />
             <Stat
@@ -239,7 +239,7 @@ export default function WishlistScreen() {
 
       <Button label="Ajouter une envie" icon="add" variant="soft" onPress={() => open("new")} />
 
-      <Card title="Règles" icon="options-outline" color="settings" index={3}>
+      <Card title="Règles" icon="options-outline" color="encre" index={3}>
         <View style={{ flexDirection: "row", gap: space.sm }}>
           <View style={{ flex: 1 }}>
             <Field
@@ -297,7 +297,7 @@ function WishRow({
         ]}
       >
         <View style={{ flexDirection: "row", gap: space.md, alignItems: "center" }}>
-          <IconTile icon="gift-outline" color="wish" />
+          <IconTile icon="gift-outline" color="epargne" />
           <View style={{ flex: 1, gap: 2 }}>
             <Txt variant="bodyStrong" numberOfLines={2}>
               {item.name}
@@ -335,15 +335,15 @@ function WishRow({
                   {funding.monthsToGo === 0 ? (
                     <Badge label="Finançable" icon="checkmark-circle" color="success" />
                   ) : funding.monthsToGo === null ? (
-                    <Badge label="Objectif mensuel à définir" color="settings" />
+                    <Badge label="Objectif mensuel à définir" color="encre" />
                   ) : (
-                    <Badge label={`≈ ${funding.monthsToGo} mois d'épargne`} icon="time-outline" color="wish" />
+                    <Badge label={`≈ ${funding.monthsToGo} mois d'épargne`} icon="time-outline" color="epargne" />
                   )}
                   <Txt variant="caption" tone="muted">
                     {formatCents(funding.fundedCents, true)} couverts
                   </Txt>
                 </View>
-                <ProgressBar value={funding.fundedCents / item.priceCents} color={t.module.wish.solid} height={6} label="Part financée" />
+                <ProgressBar value={funding.fundedCents / item.priceCents} color={t.domain.epargne.accentText} height={6} label="Part financée" />
               </View>
             ) : null}
           </>

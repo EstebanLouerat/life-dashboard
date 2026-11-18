@@ -1,39 +1,64 @@
 import { useContext, useEffect, useRef, useState, type ComponentProps } from "react";
 import { Keyboard, Pressable, View } from "react-native";
-import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
-import { LinearGradient } from "expo-linear-gradient";
+import Animated, { useAnimatedReaction, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
+import { scheduleOnRN } from "react-native-worklets";
 import type { Tabs } from "expo-router";
 import { BottomTabBarHeightCallbackContext } from "expo-router/tabs";
-import { elevation, Icon, radius, space, timing, Txt, usePressScale, useTheme, withAlpha, type IconName } from "@/components/ui";
+import {
+  DomainScope,
+  GlassSpecular,
+  glassShadow,
+  Icon,
+  radius,
+  SnackbarHost,
+  space,
+  timing,
+  Txt,
+  useChrome,
+  usePressScale,
+  useTheme,
+  type Domain,
+  type IconName,
+} from "@/components/ui";
+import { SessionAccessory } from "@/components/SessionAccessory";
 
 type TabBarProps = Parameters<NonNullable<ComponentProps<typeof Tabs>["tabBar"]>>[0];
 
-/** Outline icon when idle, filled when active. Routes not listed here get no tab. */
-const ICONS: Record<string, [IconName, IconName]> = {
-  index: ["sunny-outline", "sunny"],
-  modules: ["grid-outline", "grid"],
-  reglages: ["settings-outline", "settings"],
+/** Outline icon when idle, filled when active, and the domain each tab belongs to. Routes not listed get no tab. */
+const TABS: Record<string, { icons: [IconName, IconName]; domain: Domain }> = {
+  "(aujourdhui)": { icons: ["calendar-outline", "calendar"], domain: "encre" },
+  courses: { icons: ["cart-outline", "cart"], domain: "courses" },
+  sport: { icons: ["pulse-outline", "pulse"], domain: "sport" },
+  sante: { icons: ["fitness-outline", "fitness"], domain: "sante" },
+  plus: { icons: ["grid-outline", "grid"], domain: "encre" },
 };
 
-/** Fade above the pill: content dissolves into the background before passing under it. */
-const EDGE = 24;
+const BAR = 64;
+const INSET = 4;
 
 /**
- * Floating pill tab bar with a sliding active indicator. It floats over the
- * screens (they scroll under it and pad by its height, reported through
- * BottomTabBarHeightCallbackContext) and steps aside while the keyboard is up.
+ * Floating glass capsule, detached from the edges. A lens sits under the
+ * active tab and slides to the next one. Scrolling down a screen shrinks the
+ * bar to a round button with the current tab's icon (tap to bring it back);
+ * the session accessory and the snackbar sit just above it. Screens scroll
+ * under it and pad by its height (reported through
+ * BottomTabBarHeightCallbackContext). It steps aside while the keyboard is up.
  */
 export function TabBar({ state, descriptors, emitter, navigateToTab, insets }: TabBarProps) {
   const t = useTheme();
   const reportHeight = useContext(BottomTabBarHeightCallbackContext);
+  const chrome = useChrome();
   const keyboardShown = useKeyboardShown();
   const [width, setWidth] = useState(0);
+  const [collapsed, setCollapsed] = useState(false);
   const x = useSharedValue(0);
   const placed = useRef(false);
 
-  const routes = state.routes.filter((r) => r.name in ICONS);
+  const routes = state.routes.filter((r) => r.name in TABS);
   const active = routes.findIndex((r) => r.key === state.routes[state.index]?.key);
-  const segment = width > 0 ? (width - 12) / routes.length : 0;
+  const activeTab = TABS[routes[active]?.name ?? "(aujourdhui)"];
+  const segment = width > 0 ? (width - INSET * 2) / routes.length : 0;
+  const bottom = Math.max(insets.bottom, space.md) + space.xs;
 
   useEffect(() => {
     if (!segment || active < 0) return;
@@ -42,69 +67,109 @@ export function TabBar({ state, descriptors, emitter, navigateToTab, insets }: T
     placed.current = true;
   }, [active, segment, x]);
 
-  const indicator = useAnimatedStyle(() => ({ transform: [{ translateX: x.value }] }));
+  const collapsedValue = chrome?.collapsed;
+  useAnimatedReaction(
+    () => (collapsedValue ? collapsedValue.value > 0.5 : false),
+    (now, before) => {
+      if (now !== before) scheduleOnRN(setCollapsed, now);
+    },
+  );
+
+  const lens = useAnimatedStyle(() => ({ transform: [{ translateX: x.value }] }));
+  const bar = useAnimatedStyle(() => {
+    const c = collapsedValue?.value ?? 0;
+    return { opacity: 1 - c, transform: [{ scale: 1 - c * 0.1 }] };
+  });
+  const mini = useAnimatedStyle(() => {
+    const c = collapsedValue?.value ?? 0;
+    return { opacity: c, transform: [{ scale: 0.6 + c * 0.4 }] };
+  });
 
   if (keyboardShown) return null;
 
   return (
     <View
-      onLayout={(e) => reportHeight?.(e.nativeEvent.layout.height)}
       style={{
         position: "absolute",
         left: 0,
         right: 0,
         bottom: 0,
-        paddingHorizontal: space.lg,
-        paddingTop: EDGE,
-        paddingBottom: Math.max(insets.bottom, space.md),
+        paddingHorizontal: space.md,
+        paddingBottom: bottom,
+        gap: space.sm,
         pointerEvents: "box-none",
       }}
     >
-      <LinearGradient
-        colors={[withAlpha(t.bg, 0), t.bg]}
-        locations={[0, 0.55]}
-        style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, pointerEvents: "none" }}
-      />
-      <View
-        accessibilityRole="tablist"
-        onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
-        style={[
-          {
-            flexDirection: "row",
-            backgroundColor: t.surface,
-            borderRadius: radius.xl,
-            padding: 6,
-            borderWidth: t.dark ? 1 : 0,
-            borderColor: t.border,
-          },
-          elevation(t, 2),
-        ]}
-      >
-        {segment > 0 && active >= 0 ? (
-          <Animated.View
-            style={[
-              { position: "absolute", top: 6, bottom: 6, left: 6, width: segment, borderRadius: radius.lg, backgroundColor: t.primarySoft },
-              indicator,
-            ]}
-          />
-        ) : null}
-        {routes.map((route, i) => {
-          const focused = i === active;
-          const [idle, filled] = ICONS[route.name];
-          return (
-            <TabButton
-              key={route.key}
-              label={descriptors[route.key]?.options.title ?? route.name}
-              icon={focused ? filled : idle}
-              focused={focused}
-              onPress={() => {
-                const event = emitter.emit({ type: "tabPress", target: route.key, canPreventDefault: true });
-                if (!focused && !event.defaultPrevented) navigateToTab(route.key);
-              }}
-              onLongPress={() => emitter.emit({ type: "tabLongPress", target: route.key })}
+      <DomainScope domain={activeTab.domain}>
+        <SnackbarHost />
+        <SessionAccessory collapsed={collapsed} />
+      </DomainScope>
+
+      <View onLayout={(e) => reportHeight?.(e.nativeEvent.layout.height + bottom)} style={{ height: BAR, pointerEvents: "box-none" }}>
+        <Animated.View
+          accessibilityRole="tablist"
+          onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
+          style={[
+            {
+              flexDirection: "row",
+              height: BAR,
+              borderRadius: BAR / 2,
+              padding: INSET,
+              backgroundColor: t.glass,
+              pointerEvents: collapsed ? "none" : "auto",
+            },
+            glassShadow(t),
+            bar,
+          ]}
+        >
+          <GlassSpecular radius={BAR / 2} />
+          {segment > 0 && active >= 0 ? (
+            <Animated.View
+              style={[
+                {
+                  position: "absolute",
+                  top: INSET,
+                  bottom: INSET,
+                  left: INSET,
+                  width: segment,
+                  borderRadius: radius.pill,
+                  backgroundColor: t.lens,
+                  boxShadow: t.lensRim,
+                },
+                lens,
+              ]}
             />
-          );
-        })}
+          ) : null}
+          {routes.map((route, i) => {
+            const focused = i === active;
+            const tab = TABS[route.name];
+            return (
+              <TabButton
+                key={route.key}
+                label={descriptors[route.key]?.options.title ?? route.name}
+                icon={focused ? tab.icons[1] : tab.icons[0]}
+                domain={tab.domain}
+                focused={focused}
+                onPress={() => {
+                  const event = emitter.emit({ type: "tabPress", target: route.key, canPreventDefault: true });
+                  if (!focused && !event.defaultPrevented) navigateToTab(route.key);
+                }}
+                onLongPress={() => emitter.emit({ type: "tabLongPress", target: route.key })}
+              />
+            );
+          })}
+        </Animated.View>
+
+        <Animated.View style={[{ position: "absolute", left: 0, top: (BAR - 56) / 2, pointerEvents: collapsed ? "auto" : "none" }, mini]}>
+          <MiniButton
+            icon={activeTab.icons[1]}
+            domain={activeTab.domain}
+            label={`Afficher les onglets (${descriptors[routes[active]?.key ?? ""]?.options.title ?? ""})`}
+            onPress={() => {
+              if (collapsedValue) collapsedValue.value = withTiming(0, timing.slide);
+            }}
+          />
+        </Animated.View>
       </View>
     </View>
   );
@@ -113,19 +178,21 @@ export function TabBar({ state, descriptors, emitter, navigateToTab, insets }: T
 function TabButton({
   label,
   icon,
+  domain,
   focused,
   onPress,
   onLongPress,
 }: {
   label: string;
   icon: IconName;
+  domain: Domain;
   focused: boolean;
   onPress: () => void;
   onLongPress: () => void;
 }) {
   const t = useTheme();
-  const press = usePressScale(0.92);
-  const color = focused ? t.primaryText : t.textMuted;
+  const press = usePressScale(0.9);
+  const color = focused ? t.domain[domain].accentText : t.text;
   return (
     <Pressable
       accessibilityRole="tab"
@@ -135,13 +202,32 @@ function TabButton({
       onPressOut={press.onPressOut}
       onPress={onPress}
       onLongPress={onLongPress}
-      style={{ flex: 1, minHeight: 52, alignItems: "center", justifyContent: "center" }}
+      style={{ flex: 1, height: BAR - INSET * 2, alignItems: "center", justifyContent: "center" }}
     >
       <Animated.View style={[{ alignItems: "center", gap: 2 }, press.style]}>
         <Icon name={icon} size={22} color={color} />
-        <Txt variant="caption" color={color} numberOfLines={1} maxFontSizeMultiplier={1.3}>
+        <Txt variant="tab" color={color} numberOfLines={1} maxFontSizeMultiplier={1.2}>
           {label}
         </Txt>
+      </Animated.View>
+    </Pressable>
+  );
+}
+
+function MiniButton({ icon, domain, label, onPress }: { icon: IconName; domain: Domain; label: string; onPress: () => void }) {
+  const t = useTheme();
+  const press = usePressScale(0.92);
+  return (
+    <Pressable accessibilityRole="button" accessibilityLabel={label} onPressIn={press.onPressIn} onPressOut={press.onPressOut} onPress={onPress}>
+      <Animated.View
+        style={[
+          { width: 56, height: 56, borderRadius: 28, backgroundColor: t.glass, alignItems: "center", justifyContent: "center" },
+          glassShadow(t),
+          press.style,
+        ]}
+      >
+        <GlassSpecular radius={28} />
+        <Icon name={icon} size={24} color={t.domain[domain].accentText} />
       </Animated.View>
     </Pressable>
   );

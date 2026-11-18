@@ -27,8 +27,8 @@ export const timing = {
   fill: { duration: 600, easing: EASE_OUT },
 } as const;
 
-/** Scale under the finger: barely visible, never bouncy. */
-export const PRESSED_SCALE = 0.98;
+/** Scale under the finger: answers the touch, never bouncy. */
+export const PRESSED_SCALE = 0.96;
 
 /**
  * Shrinks on touch-down (not on release) and comes back on touch-up, so the

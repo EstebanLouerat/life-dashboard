@@ -138,7 +138,7 @@ export default function SettingsScreen() {
 
   return (
     <Screen title="Réglages">
-      <Card title="Apparence" icon="color-palette" color="sleep" index={0}>
+      <Card title="Apparence" icon="color-palette" color="sommeil" index={0}>
         <Segmented
           value={theme}
           onChange={changeTheme}
@@ -150,7 +150,7 @@ export default function SettingsScreen() {
         />
       </Card>
 
-      <Card title="Backend" subtitle="API sur ton PC (HTTPS obligatoire en release)" icon="server" color="settings" index={1}>
+      <Card title="Backend" subtitle="API sur ton PC (HTTPS obligatoire en release)" icon="server" color="encre" index={1}>
         <Field
           label="URL"
           value={baseUrl}
@@ -172,7 +172,7 @@ export default function SettingsScreen() {
         {backendStatus ? <Notice tone={backendStatus.tone}>{backendStatus.text}</Notice> : null}
       </Card>
 
-      <Card title="Backlog" subtitle="Issues GitHub du dépôt de l'app" icon="git-branch" color="settings" index={2}>
+      <Card title="Backlog" subtitle="Issues GitHub du dépôt de l'app" icon="git-branch" color="encre" index={2}>
         <Field
           label="Dépôt"
           value={backlogRepo}
@@ -196,7 +196,7 @@ export default function SettingsScreen() {
         {backlogStatus ? <Notice tone={backlogStatus.tone}>{backlogStatus.text}</Notice> : null}
       </Card>
 
-      <Card title="Hydratation" icon="water" color="water" index={3}>
+      <Card title="Hydratation" icon="water" color="eau" index={3}>
         <View style={{ flexDirection: "row", gap: space.sm }}>
           <View style={{ flex: 1 }}>
             <Field
@@ -221,7 +221,7 @@ export default function SettingsScreen() {
         {hydrationStatus ? <Notice tone={hydrationStatus.tone}>{hydrationStatus.text}</Notice> : null}
       </Card>
 
-      <Card title="Rappels" icon="notifications" color="primary" index={4}>
+      <Card title="Rappels" icon="notifications" color="encre" index={4}>
         {!notificationsAvailable() ? (
           <Notice tone="info">Expo Go sur Android : les rappels sont désactivés. Les alertes restent visibles dans Aujourd'hui.</Notice>
         ) : null}

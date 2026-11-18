@@ -7,6 +7,10 @@ describe("moduleSlug", () => {
     assert.equal(moduleSlug("## Groceries (src/app/(tabs)/modules/courses.tsx, /api/groceries)"), "courses");
     assert.equal(moduleSlug("## Hair care (src/app/(tabs)/modules/hair-care/, lib/stock.ts)"), "hair-care");
     assert.equal(moduleSlug("## Today (src/app/(tabs)/index.tsx)"), "today");
+    assert.equal(moduleSlug("## Today (src/app/(tabs)/(aujourdhui)/, lib/dashboard.ts)"), "today");
+    assert.equal(moduleSlug("## Health (src/app/(tabs)/sante/, lib/stock.ts)"), "sante");
+    assert.equal(moduleSlug("## Wishlist (src/app/(tabs)/plus/wishlist/, lib/savings.ts)"), "wishlist");
+    assert.equal(moduleSlug("## Groceries (src/app/(tabs)/courses/, /api/groceries)"), "courses");
     assert.equal(moduleSlug("## Apartment search (/api/apartments)"), "apartments");
     assert.equal(moduleSlug("## Portfolio / crypto (later)"), "portfolio-crypto");
   });

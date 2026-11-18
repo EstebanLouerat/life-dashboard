@@ -197,7 +197,7 @@ export default function HairCameraScreen() {
                   width: z === zone ? 22 : 8,
                   height: 8,
                   borderRadius: 4,
-                  backgroundColor: done.has(z) ? t.success : z === zone ? t.media.fg : t.media.muted,
+                  backgroundColor: done.has(z) ? t.media.ok : z === zone ? t.media.fg : t.media.muted,
                 }}
               />
             ))}
@@ -347,7 +347,7 @@ function Shutter({ countdown, running, busy, onPress }: { countdown: number; run
         style={{ width: 80, height: 80, borderRadius: 40, borderWidth: 4, borderColor: t.media.fg, alignItems: "center", justifyContent: "center" }}
       >
         <View style={{ width: 62, height: 62, borderRadius: 31, backgroundColor: running ? t.danger : t.media.fg, alignItems: "center", justifyContent: "center" }}>
-          {running ? <Icon name="stop" size={24} color={t.onDanger} /> : countdown > 0 ? <Icon name="timer-outline" size={26} color={t.media.bg} /> : null}
+          {running ? <Icon name="stop" size={24} color={t.dangerSoft} /> : countdown > 0 ? <Icon name="timer-outline" size={26} color={t.media.bg} /> : null}
         </View>
       </Pressable>
     </Animated.View>

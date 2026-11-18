@@ -15,12 +15,14 @@ const TOKEN_KEY = "backlog_github_token";
 /** Modules an idea or a bug can be filed under (label `module:<value>`). */
 export const BACKLOG_MODULES: { value: string; label: string }[] = [
   { value: "today", label: "Aujourd'hui" },
-  { value: "hair-care", label: "Hair care" },
+  { value: "sante", label: "Santé" },
+  { value: "hair-care", label: "Cheveux (ancien)" },
   { value: "courses", label: "Courses" },
   { value: "sport", label: "Sport" },
   { value: "abonnements", label: "Abonnements" },
   { value: "wishlist", label: "Wishlist" },
   { value: "apartments", label: "Appartement" },
+  { value: "importer", label: "Importer" },
   { value: "backlog", label: "Backlog" },
   { value: "reglages", label: "Réglages" },
 ];
@@ -28,10 +30,10 @@ export const BACKLOG_MODULES: { value: string; label: string }[] = [
 export const moduleLabel = (value: string | null) =>
   value ? (BACKLOG_MODULES.find((m) => m.value === value)?.label ?? value) : "Général";
 
-/** Module of the screen a capture was opened from ("/" → today, "/modules/courses" → courses). */
+/** Module of the screen a capture was opened from ("/" → today, "/plus/wishlist" → wishlist). */
 export function moduleFromPath(path: string | undefined): string | null {
-  if (!path || path === "/") return path === "/" ? "today" : null;
-  const name = /^\/(?:modules\/)?([\w-]+)/.exec(path)?.[1] ?? null;
+  if (!path || path === "/" || path === "/personnaliser") return path ? "today" : null;
+  const name = /^\/(?:modules\/|plus\/)?([\w-]+)/.exec(path)?.[1] ?? null;
   return name && BACKLOG_MODULES.some((m) => m.value === name) ? name : null;
 }
 

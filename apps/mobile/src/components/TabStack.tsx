@@ -1,8 +1,11 @@
 import { Stack } from "expo-router";
 import { useTheme } from "@/components/ui";
 
-/** Screens draw their own large-title header (see Screen), so the native one is hidden. */
-export default function ModulesLayout() {
+/**
+ * Stack inside a tab: screens draw their own large-title header (see
+ * Screen), so the native one is hidden, and the tab bar stays visible.
+ */
+export function TabStack() {
   const t = useTheme();
   return (
     <Stack

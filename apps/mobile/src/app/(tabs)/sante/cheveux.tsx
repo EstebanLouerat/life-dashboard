@@ -49,7 +49,7 @@ export default function HairPhotosScreen() {
             title={ZONE_LABEL[zone]}
             subtitle={`${photos.length} photo${photos.length > 1 ? "s" : ""}`}
             icon={ZONE_ICON[zone]}
-            color="care"
+            color="sante"
             index={i}
             right={photos.length > 1 ? <Button size="sm" variant="soft" icon="swap-horizontal" label="Comparer" onPress={() => compare(zone)} /> : undefined}
           >
@@ -74,7 +74,7 @@ export default function HairPhotosScreen() {
       })}
 
       {completed.some((c) => c.notes || c.sideEffects) ? (
-        <Card title="Notes des checks" icon="document-text-outline" color="primary" index={ZONES.length}>
+        <Card title="Notes des checks" icon="document-text-outline" color="encre" index={ZONES.length}>
           {completed
             .filter((c) => c.notes || c.sideEffects)
             .map((c) => (

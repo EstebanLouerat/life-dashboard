@@ -203,7 +203,7 @@ export async function openCancellation(s: Pick<Subscription, "billing" | "cancel
   return true;
 }
 
-export type MoneyAlert = { key: string; text: string; tone: "warning" | "info"; href: "/modules/abonnements" | "/modules/wishlist" };
+export type MoneyAlert = { key: string; text: string; tone: "warning" | "info"; href: "/plus/abonnements" | "/plus/wishlist" };
 
 const inDays = (n: number) => (n === 0 ? "aujourd'hui" : n === 1 ? "demain" : `dans ${n} j`);
 
@@ -217,14 +217,14 @@ export function subscriptionAlerts(subs: SubscriptionState[]): MoneyAlert[] {
         key: `trial-${s.id}`,
         tone: "warning",
         text: `Essai ${s.name} : se termine ${inDays(s.trialDaysLeft)}`,
-        href: "/modules/abonnements",
+        href: "/plus/abonnements",
       });
     } else if (s.daysUntil <= s.reminderDays) {
       alerts.push({
         key: `renew-${s.id}`,
         tone: "info",
         text: `${s.name} : ${formatCents(s.priceCents)} ${inDays(s.daysUntil)} (${shortFrDate(s.nextOn)})`,
-        href: "/modules/abonnements",
+        href: "/plus/abonnements",
       });
     }
   }

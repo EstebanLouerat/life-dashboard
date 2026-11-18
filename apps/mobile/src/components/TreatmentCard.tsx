@@ -22,9 +22,9 @@ import {
   StatGrid,
   Txt,
   useTheme,
+  type IconName,
   type Theme,
 } from "@/components/ui";
-import { treatmentIcon } from "@/components/TreatmentsToday";
 import { adherence, history, type DayEntry, type DayStatus } from "@/lib/adherence";
 import { addDays, atLocalTime, formatFrDate, isoWeekday, shortFrDate, today } from "@/lib/dates";
 import { daysPerPackage, regimenOn, supplySplit } from "@/lib/stock";
@@ -52,17 +52,23 @@ const STATUS_LABEL: Record<DayStatus, string> = {
   before: "Avant le suivi",
 };
 
+export function treatmentIcon(unit: string): IconName {
+  if (unit === "ml") return "flask-outline";
+  if (unit === "gélule") return "leaf-outline";
+  return "medkit-outline";
+}
+
 function cellColors(t: Theme, status: DayStatus | "future"): { bg: string; fg: string } {
   switch (status) {
     case "taken":
-      return { bg: t.success, fg: t.onSuccess };
+      return { bg: t.domain.sante.accent, fg: t.domain.sante.onAccent };
     case "partial":
     case "skipped":
-      return { bg: t.warning, fg: t.onWarning };
+      return { bg: t.warningSoft, fg: t.warning };
     case "missed":
-      return { bg: t.danger, fg: t.onDanger };
+      return { bg: t.dangerSoft, fg: t.danger };
     case "pending":
-      return { bg: t.primarySoft, fg: t.primaryText };
+      return { bg: t.domain.sante.surfaceAccent, fg: t.domain.sante.onAccentSoft };
     case "off":
       return { bg: t.surfaceAlt, fg: t.textMuted };
     default:
@@ -141,13 +147,13 @@ export function TreatmentCard({ state, onChanged, index }: { state: TreatmentSta
       ? t.danger
       : f.renewalAlertOn && f.renewalAlertOn <= day
         ? t.warning
-        : t.module.care.solid;
+        : t.domain.sante.accentText;
   const rxTone =
     tr.prescriptionExpiresOn && tr.prescriptionExpiresOn < day
       ? "danger"
       : state.prescriptionAlertOn && state.prescriptionAlertOn <= day
         ? "warning"
-        : "primary";
+        : "sante";
   const selectedEntry = selected ? pastDays.find((d) => d.day === selected) : undefined;
 
   return (
@@ -155,13 +161,14 @@ export function TreatmentCard({ state, onChanged, index }: { state: TreatmentSta
       title={tr.name}
       subtitle={regimen ? describeRegimen(regimen, tr.unit) : "Pas de posologie"}
       icon={treatmentIcon(tr.unit)}
-      color="care"
+      color="sante"
       index={index}
       right={
         <IconButton
           icon="create-outline"
+          variant="soft"
           label={`Modifier ${tr.name}`}
-          onPress={() => router.push({ pathname: "/modules/hair-care/[id]", params: { id: String(tr.id) } })}
+          onPress={() => router.push({ pathname: "/sante/traitements/modifier", params: { id: String(tr.id) } })}
         />
       }
     >
@@ -233,7 +240,7 @@ export function TreatmentCard({ state, onChanged, index }: { state: TreatmentSta
                     justifyContent: "center",
                     backgroundColor: colors.bg,
                     borderWidth: isSelected ? 2.5 : c.day === day ? 1.5 : 0,
-                    borderColor: isSelected ? t.text : t.primaryText,
+                    borderColor: isSelected ? t.text : t.domain.encre.accentText,
                     opacity: c.status === "before" ? 0.4 : pressed ? 0.7 : 1,
                     transform: [{ scale: pressed ? 0.92 : 1 }],
                   })}
@@ -357,7 +364,7 @@ function DoseLine({ dose, onChanged }: { dose: DoseRow; onChanged: () => void })
   return (
     <View style={{ gap: space.sm }}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: space.sm }}>
-        <Icon name={taken ? "checkmark-circle" : "close-circle"} size={22} color={taken ? t.success : t.warning} />
+        <Icon name={taken ? "checkmark-circle" : "close-circle"} size={22} color={taken ? t.domain.sante.accentText : t.warning} />
         <View style={{ flex: 1 }}>
           <Txt variant="bodyStrong">{taken ? "Pris" : "Noté manqué"}</Txt>
           <Txt variant="caption" tone="muted">

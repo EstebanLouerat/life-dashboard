@@ -11,6 +11,7 @@ import {
   leadDate,
   regimenOn,
   stockForecast,
+  supplySplit,
   type Dose,
   type DoseStatus,
   type Forecast,
@@ -365,4 +366,29 @@ export function describeRegimen(r: Regimen, unit: string): string {
   if (r.frequency === "as_needed") return `${dose} · à la demande`;
   if (r.frequency === "daily") return `${dose} · tous les jours`;
   return `${dose} · ${r.weekdays.map((w) => WEEKDAY_LABELS[w - 1]).join(", ")}`;
+}
+
+/** "Comprimé", "Gélule", "Flacon": the form a treatment is counted in. */
+export function formLabel(unit: string): string {
+  if (unit === "ml") return "Flacon";
+  return unit.charAt(0).toUpperCase() + unit.slice(1);
+}
+
+/** Stock in the words of the box: "33 gélules", "2 flacons", or null when never entered. */
+export function stockShort({ treatment: t, forecast: f }: Pick<TreatmentState, "treatment" | "forecast">): string | null {
+  if (f.remaining === null) return null;
+  if (t.unit === "ml" && t.packageSize) {
+    const { opened, reserve } = supplySplit(f.remaining, t.packageSize);
+    const bottles = reserve + (opened > 0 ? 1 : 0);
+    return `${bottles} flacon${bottles > 1 ? "s" : ""}`;
+  }
+  return formatQty(Math.max(0, Math.floor(f.remaining)), t.unit);
+}
+
+/** "Stock 34 gélules · fin estimée 21 déc." for a dose not yet taken. */
+export function stockLine(s: Pick<TreatmentState, "treatment" | "forecast">): string {
+  const stock = stockShort(s);
+  if (!stock) return "Stock non renseigné";
+  const end = s.forecast.runOutOn ? ` · fin estimée ${shortFrDate(s.forecast.runOutOn)}` : "";
+  return s.treatment.unit === "ml" ? `${stock} en stock${end}` : `Stock ${stock}${end}`;
 }

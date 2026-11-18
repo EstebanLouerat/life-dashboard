@@ -208,11 +208,11 @@ export function wishlistAlerts(state: WishlistState, day = today()): MoneyAlert[
   const alerts: MoneyAlert[] = [];
   if (tracksSavings(state) && !state.monthRecorded) {
     const label = new Date(`${monthOf(day)}-15T12:00:00`).toLocaleDateString("fr-FR", { month: "long" });
-    alerts.push({ key: "balance", tone: "info", text: `Solde d'épargne de ${label} à saisir`, href: "/modules/wishlist" });
+    alerts.push({ key: "balance", tone: "info", text: `Solde d'épargne de ${label} à saisir`, href: "/plus/wishlist" });
   }
   for (const i of state.items) {
     if (i.status === "wanted" && i.coolingUntil && i.coolingUntil <= day && i.coolingUntil >= addDays(day, -6)) {
-      alerts.push({ key: `cool-${i.id}`, tone: "info", text: `Réflexion terminée : ${i.name}. Toujours envie ?`, href: "/modules/wishlist" });
+      alerts.push({ key: `cool-${i.id}`, tone: "info", text: `Réflexion terminée : ${i.name}. Toujours envie ?`, href: "/plus/wishlist" });
     }
   }
   return alerts;

@@ -180,8 +180,8 @@ function BacklogRow({ item, onMove }: { item: BacklogItem; onMove: (item: Backlo
           <Txt variant="caption" tone="muted">
             #{item.id}
           </Txt>
-          {item.kind === "bug" ? <Badge label="Bug" color="danger" /> : item.kind === "idea" ? <Badge label="Idée" color="primary" /> : null}
-          {item.module ? <Badge label={moduleLabel(item.module)} color="settings" /> : null}
+          {item.kind === "bug" ? <Badge label="Bug" color="danger" /> : item.kind === "idea" ? <Badge label="Idée" color="encre" /> : null}
+          {item.module ? <Badge label={moduleLabel(item.module)} color="encre" /> : null}
         </View>
       </PressableScale>
       <Button size="sm" variant={item.status === "done" ? "ghost" : "soft"} label={next.label} onPress={() => onMove(item, next.status)} />

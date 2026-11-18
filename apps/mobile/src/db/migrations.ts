@@ -214,6 +214,17 @@ const MIGRATIONS: string[] = [
     ('backlog_repo', ''),
     ('backlog_synced_at', '');
   `,
+  // 7 — redesign: last night logged in one tap as a duration range (Today's
+  // sleep tile), and the local day a grocery plan starts (menu dates).
+  `
+  CREATE TABLE sleep_nights (
+    day TEXT PRIMARY KEY,                      -- YYYY-MM-DD of the morning (local)
+    bucket INTEGER NOT NULL,                   -- 0: < 6 h | 1: 6–7 h | 2: 7–8 h | 3: 8 h +
+    logged_at TEXT NOT NULL                    -- ISO
+  );
+
+  ALTER TABLE grocery_plans ADD COLUMN start_day TEXT;   -- YYYY-MM-DD, null for older plans
+  `,
 ];
 
 export async function migrate(db: SQLiteDatabase): Promise<void> {

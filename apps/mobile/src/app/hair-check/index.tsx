@@ -69,12 +69,12 @@ export default function HairCheckPrepareScreen() {
   return (
     <Screen back title="Check photo" subtitle="4 zones, dans les mêmes conditions chaque mois">
       {open ? (
-        <Card title="Check en cours" subtitle={`Commencé le ${shortFrDate(open.day)} · ${open.photos.length}/${ZONES.length} zones`} icon="camera" color="care" index={0}>
+        <Card title="Check en cours" subtitle={`Commencé le ${shortFrDate(open.day)} · ${open.photos.length}/${ZONES.length} zones`} icon="camera" color="sante" index={0}>
           <Button size="sm" variant="ghost" icon="trash-outline" label="Abandonner ce check" onPress={abandon} />
         </Card>
       ) : null}
 
-      <Card title="Avant les photos" icon="checkbox-outline" color="care" index={1}>
+      <Card title="Avant les photos" icon="checkbox-outline" color="sante" index={1}>
         {CHECKLIST.map((item) => {
           const done = ticked.has(item.key);
           return (
@@ -86,14 +86,14 @@ export default function HairCheckPrepareScreen() {
               onPress={() => toggle(item.key)}
               style={{ flexDirection: "row", alignItems: "center", gap: space.md, minHeight: 56 }}
             >
-              <Icon name={item.icon} size={22} color={t.module.care.solid} />
+              <Icon name={item.icon} size={22} color={t.domain.sante.accentText} />
               <View style={{ flex: 1, gap: 2 }}>
                 <Txt variant="bodyStrong">{item.title}</Txt>
                 <Txt variant="caption" tone="muted">
                   {item.body}
                 </Txt>
               </View>
-              <Icon name={done ? "checkmark-circle" : "ellipse-outline"} size={28} color={done ? t.success : t.textMuted} />
+              <Icon name={done ? "checkmark-circle" : "ellipse-outline"} size={28} color={done ? t.domain.sante.accentText : t.textMuted} />
             </PressableScale>
           );
         })}

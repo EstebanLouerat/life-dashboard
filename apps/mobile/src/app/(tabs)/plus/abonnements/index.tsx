@@ -66,7 +66,7 @@ export default function SubscriptionsScreen() {
   return (
     <Screen back title="Abonnements" subtitle="Ce que tu paies chaque mois, et quand">
       {active.length ? (
-        <Card title="Budget" icon="card" color="subs" index={0}>
+        <Card title="Budget" icon="card" color="epargne" index={0}>
           <View style={{ flexDirection: "row", alignItems: "baseline", gap: space.xs }}>
             <Txt variant="number">{formatCents(Math.round(monthly))}</Txt>
             <Txt variant="callout" tone="muted">
@@ -103,7 +103,7 @@ export default function SubscriptionsScreen() {
         </Notice>
       ))}
 
-      <Card title="Prochains prélèvements" icon="calendar" color="subs" index={1}>
+      <Card title="Prochains prélèvements" icon="calendar" color="epargne" index={1}>
         {active.length === 0 ? (
           <EmptyState icon="card-outline" title="Aucun abonnement" body="Ajoute tes abonnements pour voir ton budget mensuel et être prévenu avant chaque prélèvement." />
         ) : (

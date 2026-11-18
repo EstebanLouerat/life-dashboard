@@ -14,9 +14,9 @@ export function moduleSlug(heading: string): string {
   const open = heading.indexOf(" (");
   const name = (open >= 0 ? heading.slice(0, open) : heading).replace(/^#+\s*/, "").trim();
   const firstPath = open >= 0 ? heading.slice(open + 2, heading.lastIndexOf(")")).split(", ")[0] : "";
-  const route = /modules\/([\w-]+?)(?:\.tsx|\/|$)/.exec(firstPath);
+  if (/\(tabs\)\/(?:index\.tsx$|\(aujourdhui\))/.test(firstPath)) return "today";
+  const route = /\(tabs\)\/(?:modules\/|plus\/)?([\w-]+?)(?:\.tsx|\/|$)/.exec(firstPath);
   if (route) return route[1];
-  if (/\(tabs\)\/index\.tsx$/.test(firstPath)) return "today";
   const api = /^\/api\/([\w-]+)/.exec(firstPath);
   if (api) return api[1];
   return name

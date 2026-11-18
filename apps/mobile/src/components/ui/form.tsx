@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Notice } from "./primitives";
+import { Notice } from "./controls";
 
 type Errors<K extends string> = Partial<Record<K, string>>;
 

@@ -33,7 +33,7 @@ export default function HairCareScreen() {
           title="Suivi photo"
           subtitle={hair.lastDay ? `Dernier check le ${shortFrDate(hair.lastDay)} · prochain le ${shortFrDate(hair.due)}` : "Un check par mois, 4 zones"}
           icon="camera"
-          color="care"
+          color="sante"
           index={0}
           right={
             hair.photos.length ? (
