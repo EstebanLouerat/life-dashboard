@@ -21,6 +21,10 @@ import {
   type IconName,
 } from "@/components/ui";
 import { SessionAccessory } from "@/components/SessionAccessory";
+import { useWorkoutRunner } from "@/components/WorkoutRunner";
+
+/** Height of the session accessory plus its gap, added to the reported bar height while a session runs. */
+const ACCESSORY = 60;
 
 type TabBarProps = Parameters<NonNullable<ComponentProps<typeof Tabs>["tabBar"]>>[0];
 
@@ -48,6 +52,7 @@ export function TabBar({ state, descriptors, emitter, navigateToTab, insets }: T
   const t = useTheme();
   const reportHeight = useContext(BottomTabBarHeightCallbackContext);
   const chrome = useChrome();
+  const { run } = useWorkoutRunner();
   const keyboardShown = useKeyboardShown();
   const [width, setWidth] = useState(0);
   const [collapsed, setCollapsed] = useState(false);
@@ -59,6 +64,12 @@ export function TabBar({ state, descriptors, emitter, navigateToTab, insets }: T
   const activeTab = TABS[routes[active]?.name ?? "(aujourdhui)"];
   const segment = width > 0 ? (width - INSET * 2) / routes.length : 0;
   const bottom = Math.max(insets.bottom, space.md) + space.xs;
+  const running = !!run;
+
+  // Screens pad by this: the bar, its margin, and the accessory while a session runs.
+  useEffect(() => {
+    reportHeight?.(BAR + bottom + (running ? ACCESSORY : 0));
+  }, [reportHeight, bottom, running]);
 
   useEffect(() => {
     if (!segment || active < 0) return;
@@ -105,7 +116,7 @@ export function TabBar({ state, descriptors, emitter, navigateToTab, insets }: T
         <SessionAccessory collapsed={collapsed} />
       </DomainScope>
 
-      <View onLayout={(e) => reportHeight?.(e.nativeEvent.layout.height + bottom)} style={{ height: BAR, pointerEvents: "box-none" }}>
+      <View style={{ height: BAR, pointerEvents: "box-none" }}>
         <Animated.View
           accessibilityRole="tablist"
           onLayout={(e) => setWidth(e.nativeEvent.layout.width)}

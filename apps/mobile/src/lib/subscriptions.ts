@@ -134,7 +134,7 @@ async function syncReminders(s: SubscriptionState) {
   for (const [k, date] of dates.entries()) {
     const at = atLocalTime(date, REMINDER_HOUR);
     at.setDate(at.getDate() - s.reminderDays);
-    await scheduleAt(`sub-${s.id}-r${k}`, `💳 ${s.name}`, `Prélèvement de ${formatCents(s.priceCents)} le ${shortFrDate(date)}.`, at, CHANNEL_MONEY);
+    await scheduleAt(`sub-${s.id}-r${k}`, s.name, `Prélèvement de ${formatCents(s.priceCents)} le ${shortFrDate(date)}.`, at, CHANNEL_MONEY);
   }
   if (s.trialEndsOn) {
     const at = atLocalTime(s.trialEndsOn, REMINDER_HOUR);

@@ -18,8 +18,8 @@ Commands (repo root):
 
 ## Backlog (GitHub Issues)
 
-The backlog lives in this repository's GitHub issues; the app reads and edits it (Modules → Backlog, "Idée / bug" on Today).
-- Status: open = to do, open + label `status:doing` = in progress, closed = done. Labels `module:<name>` (route folder: `hair-care`, `courses`…) and `bug` / `enhancement` give module and kind.
+The backlog lives in this repository's GitHub issues; the app reads and edits it (Plus → Backlog, the light-bulb button on Today).
+- Status: open = to do, open + label `status:doing` = in progress, closed = done. Labels `module:<name>` (route folder: `sante`, `courses`, `wishlist`…) and `bug` / `enhancement` give module and kind.
 - Claude Code works on issues labelled `claude-code` only: `gh issue list --label claude-code --state open`.
 - Taking one: `gh issue edit <n> --add-label status:doing`, then a branch `issue-<n>-<short-slug>`. Progress or questions go in `gh issue comment <n>`.
 - Finishing: the commit or PR says `Closes #<n>`, which closes the issue (done) when it reaches `main`; remove `status:doing` if it stays open.

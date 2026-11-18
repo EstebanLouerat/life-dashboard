@@ -38,10 +38,10 @@ npx expo run:android
 Ça compile une version de développement, l'installe sur le téléphone et lance le serveur Expo. Ensuite, chaque modification du code se recharge en direct.
 
 ### 4. Connecter l'app au backend
-Onglet **Réglages** :
-- URL : `http://<IP-de-ton-PC>:3000` (trouve l'IP avec `ipconfig`, ligne « Adresse IPv4 »)
-- Clé : la valeur d'`APP_KEY`
-- « Enregistrer et tester » doit afficher ✅
+Onglet **Plus › Réglages**, section Serveur :
+- Adresse du serveur : `http://<IP-de-ton-PC>:3000` (trouve l'IP avec `ipconfig`, ligne « Adresse IPv4 »)
+- Clé d'accès : la valeur d'`APP_KEY`
+- « Tester la connexion » doit afficher « Connecté » dans la ligne État
 
 ## Plus tard : sans PC allumé
 Déployer `apps/api` sur Vercel (gratuit), y mettre les mêmes variables d'environnement, puis utiliser l'URL `https://…vercel.app` dans l'app. Une APK de release exige une URL en HTTPS.

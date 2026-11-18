@@ -600,8 +600,8 @@ export function Switch({ value, onChange, label, domain }: { value: boolean; onC
 }
 
 /**
- * Stepped slider: the thumb follows the finger 1:1, settles on the nearest
- * step and vibrates once per step crossed. Screen readers adjust it step by
+ * Stepped slider: the thumb follows a horizontal drag 1:1, settles on the
+ * nearest step and vibrates once per step crossed. Screen readers adjust it step by
  * step. `value` and `onChange` are step indexes.
  */
 export function Slider({
@@ -637,15 +637,18 @@ export function Slider({
     onChange(i);
   };
 
+  // Horizontal drags only, so a vertical scroll that starts on the slider still scrolls the page.
+  const active = useSharedValue(false);
   const pan = usePanGesture({
-    minDistance: 0,
-    onBegin: (e) => {
+    activeOffsetX: [-6, 6],
+    failOffsetY: [-10, 10],
+    onBegin: () => {
       "worklet";
-      start.value = Math.min(w.value, Math.max(0, e.x - THUMB / 2));
-      x.value = start.value;
+      start.value = x.value;
     },
     onUpdate: (e) => {
       "worklet";
+      active.value = true;
       x.value = Math.min(w.value, Math.max(0, start.value + e.translationX));
       const i = Math.round((x.value / Math.max(1, w.value)) * max);
       if (i !== current.value) {
@@ -655,6 +658,8 @@ export function Slider({
     },
     onFinalize: () => {
       "worklet";
+      if (!active.value) return;
+      active.value = false;
       const i = Math.round((x.value / Math.max(1, w.value)) * max);
       x.value = withTiming((i / max) * w.value, timing.release);
       if (i !== current.value) {

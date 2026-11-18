@@ -120,7 +120,7 @@ export async function refreshWishlist(db: SQLiteDatabase): Promise<WishlistState
     i.status === "wanted" && i.coolingUntil && i.coolingUntil > day
       ? scheduleAt(
           `wish-${i.id}-cooling`,
-          `🎁 ${i.name}`,
+          i.name,
           "Fin de la période de réflexion. Toujours envie ?",
           atLocalTime(i.coolingUntil, REMINDER_HOUR),
           CHANNEL_MONEY,
@@ -128,7 +128,7 @@ export async function refreshWishlist(db: SQLiteDatabase): Promise<WishlistState
       : cancelScheduled([`wish-${i.id}-cooling`]),
   );
   if (tracksSavings(state)) {
-    jobs.push(scheduleMonthly(BALANCE_REMINDER_ID, "💰 Épargne", "Nouveau mois : saisis ton solde d'épargne.", 1, REMINDER_HOUR, 0, CHANNEL_MONEY));
+    jobs.push(scheduleMonthly(BALANCE_REMINDER_ID, "Épargne", "Nouveau mois : saisis ton solde d'épargne.", 1, REMINDER_HOUR, 0, CHANNEL_MONEY));
   }
   await Promise.all(jobs).catch(console.warn);
   return state;

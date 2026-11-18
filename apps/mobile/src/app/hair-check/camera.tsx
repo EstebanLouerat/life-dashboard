@@ -9,7 +9,6 @@ import { StatusBar } from "expo-status-bar";
 import {
   Button,
   Icon,
-  IconButton,
   Notice,
   popIn,
   radius,
@@ -19,7 +18,10 @@ import {
   Txt,
   usePressScale,
   useTheme,
+  type IconName,
+  type Theme,
 } from "@/components/ui";
+import { shortFrDate } from "@/lib/dates";
 import { LevelIndicator } from "@/components/LevelIndicator";
 import { analyzeShot, discardShot, loadHairState, savePhoto, type HairState } from "@/lib/hairChecks";
 import {
@@ -186,32 +188,41 @@ export default function HairCameraScreen() {
       ) : null}
       <FrameGuide pose={setup.pose} />
 
-      <View style={{ position: "absolute", top: 0, left: 0, right: 0, paddingTop: insets.top + space.sm, paddingHorizontal: space.lg, gap: space.md }}>
-        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-          <IconButton icon="close" label="Fermer, le check reste à reprendre" onPress={close} />
-          <View style={{ flexDirection: "row", gap: 6 }} accessibilityLabel={`Zone ${position} sur ${ZONES.length}`}>
-            {ZONES.map((z) => (
-              <View
-                key={z}
-                style={{
-                  width: z === zone ? 22 : 8,
-                  height: 8,
-                  borderRadius: 4,
-                  backgroundColor: done.has(z) ? t.media.ok : z === zone ? t.media.fg : t.media.muted,
-                }}
-              />
-            ))}
+      <View style={{ position: "absolute", top: 0, left: 0, right: 0, paddingTop: insets.top + space.sm, paddingHorizontal: space.md, gap: space.sm }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: space.sm }}>
+          <CamButton icon="close" label="Fermer, le check reste à reprendre" onPress={close} />
+          <View
+            accessibilityLabel={`Cheveux, zone ${position} sur ${ZONES.length} : ${ZONE_LABEL[zone]}`}
+            style={[camGlass(t), { flex: 1, borderRadius: radius.pill, minHeight: 52, alignItems: "center", justifyContent: "center", paddingHorizontal: space.lg }]}
+          >
+            <Txt variant="caption" color={t.media.muted}>
+              Cheveux · zone {position} / {ZONES.length}
+            </Txt>
+            <Txt variant="bodyStrong" color={t.media.fg}>
+              {ZONE_LABEL[zone]}
+            </Txt>
           </View>
-          <IconButton
-            icon={ghostOn ? "layers" : "layers-outline"}
-            label={ghostOn ? "Masquer la photo précédente" : "Afficher la photo précédente"}
-            onPress={() => setGhostOn(!ghostOn)}
-            disabled={!ghost}
-          />
+          <View style={{ width: 44 }} />
         </View>
-        <View style={{ alignItems: "center" }}>
+        <View style={{ alignItems: "center", gap: space.sm }}>
+          <View style={[camGlass(t), { flexDirection: "row", alignItems: "center", gap: 4, height: 28, paddingHorizontal: space.md, borderRadius: radius.pill }]}>
+            <Icon name="phone-portrait-outline" size={12} color={t.media.fg} />
+            <Txt variant="caption" color={t.media.fg}>
+              Stocké sur ce téléphone
+            </Txt>
+          </View>
           <LevelIndicator pose={setup.pose} onLevelChange={(level) => level && haptics.tap()} />
         </View>
+        {ghost && ghostOn ? (
+          <View style={{ alignItems: "flex-end" }}>
+            <View style={[camGlass(t), { flexDirection: "row", alignItems: "center", gap: 6, height: 32, paddingHorizontal: space.md, borderRadius: radius.pill }]}>
+              <Icon name="layers-outline" size={14} color={t.media.fg} />
+              <Txt variant="caption" color={t.media.fg}>
+                Calque : {shortFrDate(ghost.day)} · {Math.round(GHOST_OPACITY * 100)} %
+              </Txt>
+            </View>
+          </View>
+        ) : null}
       </View>
 
       {phase === "countdown" ? (
@@ -224,53 +235,68 @@ export default function HairCameraScreen() {
         </View>
       ) : null}
 
-      <View
-        style={{
-          position: "absolute",
-          left: 0,
-          right: 0,
-          bottom: 0,
-          paddingTop: space.lg,
-          paddingBottom: insets.bottom + space.lg,
-          paddingHorizontal: space.lg,
-          gap: space.md,
-          backgroundColor: t.media.scrim,
-        }}
-      >
-        <View style={{ gap: 2 }}>
-          <Txt variant="overline" color={t.media.muted}>
-            Zone {position} / {ZONES.length}
-          </Txt>
-          <Txt variant="title" color={t.media.fg}>
-            {ZONE_LABEL[zone]}
-          </Txt>
-          <Txt variant="callout" color={t.media.muted}>
+      <View style={{ position: "absolute", left: 0, right: 0, bottom: 0, paddingBottom: insets.bottom + space.lg, paddingHorizontal: space.lg, gap: space.md }}>
+        <View style={[camGlass(t), { borderRadius: radius.lg, padding: space.md }]}>
+          <Txt variant="callout" color={t.media.fg}>
             {setup.hint}
-            {ghost ? " La photo précédente est en transparence." : ""}
           </Txt>
         </View>
-        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-          <View style={{ flex: 1 }}>
+        <View
+          accessibilityLabel={`Zone ${position} sur ${ZONES.length}`}
+          style={[camGlass(t), { flexDirection: "row", borderRadius: radius.pill, padding: 4, gap: 4 }]}
+        >
+          {ZONES.map((z) => (
+            <View
+              key={z}
+              style={{
+                flex: 1,
+                height: 36,
+                borderRadius: radius.pill,
+                alignItems: "center",
+                justifyContent: "center",
+                backgroundColor: z === zone ? t.media.okSoft : "transparent",
+              }}
+            >
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 2 }}>
+                {done.has(z) && z !== zone ? <Icon name="checkmark" size={12} color={t.media.ok} /> : null}
+                <Txt variant="captionStrong" numberOfLines={1} color={z === zone || done.has(z) ? t.media.ok : t.media.muted}>
+                  {ZONE_SHORT[z]}
+                </Txt>
+              </View>
+            </View>
+          ))}
+        </View>
+        <View style={[camGlass(t), { flexDirection: "row", alignItems: "center", borderRadius: 48, paddingVertical: space.sm, paddingHorizontal: space.md }]}>
+          <View style={{ flex: 1, alignItems: "flex-start" }}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={ghostOn ? "Masquer la photo précédente" : "Afficher la photo précédente"}
+              accessibilityState={{ disabled: !ghost, selected: ghostOn }}
+              disabled={!ghost}
+              onPress={() => setGhostOn(!ghostOn)}
+              style={{ minHeight: 56, minWidth: 64, alignItems: "center", justifyContent: "center", opacity: ghost ? 1 : 0.4 }}
+            >
+              <Icon name={ghostOn ? "layers" : "layers-outline"} size={22} color={t.media.fg} />
+              <Txt variant="caption" color={t.media.fg}>
+                Calque {ghostOn ? `${Math.round(GHOST_OPACITY * 100)} %` : "masqué"}
+              </Txt>
+            </Pressable>
+          </View>
+          <Shutter countdown={setup.countdown} running={phase === "countdown"} busy={phase === "busy"} onPress={shoot} />
+          <View style={{ flex: 1, alignItems: "flex-end" }}>
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={`Passer la zone ${ZONE_LABEL[zone]}`}
               hitSlop={8}
               disabled={phase !== "aim"}
               onPress={() => setSkipped([...skipped, zone])}
-              style={{ minHeight: 44, justifyContent: "center", opacity: phase === "aim" ? 1 : 0.4 }}
+              style={{ minHeight: 56, minWidth: 64, alignItems: "center", justifyContent: "center", opacity: phase === "aim" ? 1 : 0.4 }}
             >
               <Txt variant="bodyStrong" color={t.media.fg}>
                 Passer
               </Txt>
             </Pressable>
           </View>
-          <Shutter
-            countdown={setup.countdown}
-            running={phase === "countdown"}
-            busy={phase === "busy"}
-            onPress={shoot}
-          />
-          <View style={{ flex: 1 }} />
         </View>
       </View>
 
@@ -307,6 +333,32 @@ export default function HairCameraScreen() {
         </View>
       ) : null}
     </View>
+  );
+}
+
+/** Glass over the viewfinder: always dark, whatever the app theme. */
+function camGlass(t: Theme) {
+  return { backgroundColor: t.media.glass, borderWidth: 1, borderColor: t.media.edge };
+}
+
+const ZONE_SHORT: Record<Zone, string> = { frontal: "Frontale", temples: "Golfes", vertex: "Vertex", top: "Dessus" };
+
+function CamButton({ icon, label, onPress }: { icon: IconName; label: string; onPress: () => void }) {
+  const t = useTheme();
+  const press = usePressScale(0.92);
+  return (
+    <Animated.View style={press.style}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={label}
+        onPressIn={press.onPressIn}
+        onPressOut={press.onPressOut}
+        onPress={onPress}
+        style={[camGlass(t), { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center" }]}
+      >
+        <Icon name={icon} size={22} color={t.media.fg} />
+      </Pressable>
+    </Animated.View>
   );
 }
 
