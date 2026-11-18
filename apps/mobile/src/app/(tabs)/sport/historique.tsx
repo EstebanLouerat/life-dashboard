@@ -5,7 +5,7 @@ import { useSQLiteContext } from "expo-sqlite";
 import { Rpe, WorkoutSession } from "@ld/contracts";
 import { Badge, Card, EmptyState, Screen, space, Txt } from "@/components/ui";
 import { atLocalTime } from "@/lib/dates";
-import { RPE_LABEL } from "./index";
+import { RPE_LABEL } from "@/lib/workoutTimeline";
 
 type Row = { id: number; day: string; title: string; minutes: number; exercises: number; rpe: Rpe | null };
 

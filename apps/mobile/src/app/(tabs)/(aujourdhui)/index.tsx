@@ -22,6 +22,7 @@ import { addDays, today } from "@/lib/dates";
 import { haptics } from "@/lib/haptics";
 import { refreshHairChecks, type HairState } from "@/lib/hairChecks";
 import { loadNights, setNight } from "@/lib/nights";
+import { nextHydrationReminder, parsePrefs } from "@/lib/reminders";
 import { intSetting, readSettings } from "@/lib/settings";
 import { SLEEP_BUCKETS, type Bucket, type Night } from "@/lib/sleep";
 import { isScheduled, type DoseStatus } from "@/lib/stock";
@@ -43,6 +44,8 @@ type TodayData = {
   wishlist: WishlistState;
   hair: HairState;
   moneyAlerts: MoneyAlert[];
+  /** "13:00", or null when hydration reminders are off. */
+  nextReminder: string | null;
 };
 
 const fr = new Intl.NumberFormat("fr-FR");
@@ -120,6 +123,7 @@ export default function TodayScreen() {
       wishlist,
       hair,
       moneyAlerts: [...subscriptionAlerts(subs), ...wishlistAlerts(wishlist)],
+      nextReminder: nextHydrationReminder(parsePrefs(settings), new Date()),
     });
   }, [db]);
 
@@ -360,7 +364,7 @@ export default function TodayScreen() {
             ml={data.ml}
             goal={data.goal}
             glass={data.glass}
-            hint={Date.now() - lastWaterAt < 60_000 ? "ajouté à l'instant" : null}
+            hint={Date.now() - lastWaterAt < 60_000 ? "ajouté à l'instant" : data.nextReminder ? `prochain rappel ${data.nextReminder}` : null}
             onAdd={addWater}
           />
         );

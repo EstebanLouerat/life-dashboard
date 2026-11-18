@@ -36,7 +36,7 @@ export default function HairCheckFinishScreen() {
   };
 
   return (
-    <Screen back title="Dernière étape" subtitle="Ajoute ce que tu as remarqué ce mois-ci">
+    <Screen back domain="sante" title="Dernière étape" subtitle="Ajoute ce que tu as remarqué ce mois-ci">
       <Card title="Photos" icon="images-outline" color="sante" index={0}>
         <View style={{ flexDirection: "row", gap: space.sm }}>
           {ZONES.map((z) => {

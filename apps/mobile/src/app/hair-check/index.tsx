@@ -67,7 +67,7 @@ export default function HairCheckPrepareScreen() {
   const open = state?.open ?? null;
 
   return (
-    <Screen back title="Check photo" subtitle="4 zones, dans les mêmes conditions chaque mois">
+    <Screen back domain="sante" title="Check photo" subtitle="4 zones, dans les mêmes conditions chaque mois">
       {open ? (
         <Card title="Check en cours" subtitle={`Commencé le ${shortFrDate(open.day)} · ${open.photos.length}/${ZONES.length} zones`} icon="camera" color="sante" index={0}>
           <Button size="sm" variant="ghost" icon="trash-outline" label="Abandonner ce check" onPress={abandon} />

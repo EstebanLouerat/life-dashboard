@@ -1,4 +1,5 @@
 import type { SQLiteDatabase } from "expo-sqlite";
+import { loadReminderPrefs } from "@/lib/reminderSettings";
 import { Directory, File, Paths } from "expo-file-system";
 import { ImageManipulator, SaveFormat } from "expo-image-manipulator";
 import { decode } from "jpeg-js";
@@ -128,7 +129,8 @@ export async function refreshHairChecks(db: SQLiteDatabase, opts: { reminder?: b
   const state = await loadHairState(db);
   if (opts.reminder || !reminderSynced) {
     reminderSynced = true;
-    if (state.lastDay) {
+    const prefs = await loadReminderPrefs(db);
+    if (state.lastDay && prefs.hairPhoto) {
       await scheduleMonthly(
         REMINDER_ID,
         "Check photo du mois",

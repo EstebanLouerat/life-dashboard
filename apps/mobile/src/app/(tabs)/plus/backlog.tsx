@@ -76,7 +76,7 @@ export default function BacklogScreen() {
     setState(await loadBacklog(db));
   };
 
-  const capture = () => router.push({ pathname: "/capture", params: { from: "/modules/backlog" } });
+  const capture = () => router.push({ pathname: "/capture", params: { from: "/plus/backlog" } });
 
   if (!state) return <Screen back title="Backlog" />;
 

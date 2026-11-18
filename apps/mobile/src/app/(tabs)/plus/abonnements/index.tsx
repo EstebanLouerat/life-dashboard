@@ -61,10 +61,10 @@ export default function SubscriptionsScreen() {
     .map(([category, cents]) => ({ category: category as SubscriptionCategory, cents }))
     .sort((a, b) => b.cents - a.cents);
   const alerts = subscriptionAlerts(subs);
-  const open = (id: number | "new") => router.push({ pathname: "/modules/abonnements/[id]", params: { id: String(id) } });
+  const open = (id: number | "new") => router.push({ pathname: "/plus/abonnements/[id]", params: { id: String(id) } });
 
   return (
-    <Screen back title="Abonnements" subtitle="Ce que tu paies chaque mois, et quand">
+    <Screen back domain="epargne" title="Abonnements" subtitle="Ce que tu paies chaque mois, et quand">
       {active.length ? (
         <Card title="Budget" icon="card" color="epargne" index={0}>
           <View style={{ flexDirection: "row", alignItems: "baseline", gap: space.xs }}>

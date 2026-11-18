@@ -150,7 +150,7 @@ export default function HairCameraScreen() {
 
   if (!permission.granted) {
     return (
-      <Screen back title="Caméra" subtitle="Nécessaire pour le check photo">
+      <Screen back domain="sante" title="Caméra" subtitle="Nécessaire pour le check photo">
         <Notice tone="info">Les photos restent dans le dossier privé de l'app. Aucune n'est envoyée ni ajoutée à la galerie.</Notice>
         <Button
           label={permission.canAskAgain ? "Autoriser la caméra" : "Ouvrir les réglages Android"}

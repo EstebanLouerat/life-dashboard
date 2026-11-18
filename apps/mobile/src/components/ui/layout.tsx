@@ -610,3 +610,38 @@ export function Sheet({
     </Modal>
   );
 }
+
+/** Dashed "add" block at the end of a list. */
+export function AddRow({ label, hint, onPress }: { label: string; hint?: string; onPress: () => void }) {
+  const t = useTheme();
+  const a = useAccent();
+  return (
+    <PressableScale
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      onPress={onPress}
+      style={{
+        borderRadius: radius.lg,
+        borderWidth: 1,
+        borderStyle: "dashed",
+        borderColor: t.borderStrong,
+        paddingVertical: space.md,
+        paddingHorizontal: space.lg,
+        alignItems: "center",
+        gap: 2,
+      }}
+    >
+      <View style={{ flexDirection: "row", alignItems: "center", gap: space.sm }}>
+        <Icon name="add" size={20} color={a.accentText} />
+        <Txt variant="label" tone="accent">
+          {label}
+        </Txt>
+      </View>
+      {hint ? (
+        <Txt variant="caption" tone="muted" style={{ textAlign: "center" }}>
+          {hint}
+        </Txt>
+      ) : null}
+    </PressableScale>
+  );
+}

@@ -61,10 +61,15 @@ export function exerciseSeconds(ex: TimedExercise): number {
   return ex.sets * work + Math.max(0, ex.sets - 1) * ex.restSeconds;
 }
 
-export type Block = { block: TimedExercise["block"]; label: string; minutes: number; exercises: { index: number; exercise: TimedExercise }[] };
+export type Block<T extends TimedExercise = TimedExercise> = {
+  block: TimedExercise["block"];
+  label: string;
+  minutes: number;
+  exercises: { index: number; exercise: T }[];
+};
 
 /** Exercises grouped by block, in session order, with an approximate duration (≥ 1 min). */
-export function groupBlocks(exercises: TimedExercise[]): Block[] {
+export function groupBlocks<T extends TimedExercise>(exercises: T[]): Block<T>[] {
   return BLOCK_ORDER.map((block) => {
     const list = exercises.map((exercise, index) => ({ index, exercise })).filter((e) => e.exercise.block === block);
     const seconds = list.reduce((sum, e) => sum + exerciseSeconds(e.exercise), 0);
@@ -93,3 +98,13 @@ export function minutesLeft(steps: Step[], index: number, remainingInStep: numbe
   }
   return Math.max(1, Math.ceil(total / 60));
 }
+
+export type RpeValue = "trop-facile" | "ok" | "dur" | "trop-dur";
+
+/** How a session felt, as the user picks it. */
+export const RPE_LABEL: Record<RpeValue, string> = {
+  "trop-facile": "Trop facile",
+  ok: "OK",
+  dur: "Dur",
+  "trop-dur": "Trop dur",
+};

@@ -138,7 +138,7 @@ export default function WishEditScreen() {
   const left = item ? coolingLeft(item) : 0;
 
   return (
-    <Screen back title={isNew ? "Nouvelle envie" : name || "Envie"}>
+    <Screen back domain="epargne" title={isNew ? "Nouvelle envie" : name || "Envie"}>
       <Card title="Envie" icon="gift-outline" color="epargne" index={0}>
         <Field label="Nom" value={name} onChangeText={edit("name", setName)} error={errors.name} placeholder="ex. Écran 27 pouces" />
         <Field label="Prix (€)" value={price} onChangeText={edit("price", setPrice)} onBlur={blur("price", price)} keyboardType="decimal-pad" error={errors.price} placeholder="249,99" />

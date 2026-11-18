@@ -1,5 +1,6 @@
 import type { SQLiteDatabase } from "expo-sqlite";
 import { atLocalTime, formatFrDate, shortFrDate, today } from "@/lib/dates";
+import { loadReminderPrefs } from "@/lib/reminderSettings";
 import {
   CHANNEL_TREATMENTS,
   cancelScheduled,
@@ -147,12 +148,13 @@ export async function refreshTreatments(
   opts: { doseReminders?: boolean } = {},
 ): Promise<TreatmentState[]> {
   const states = await loadTreatments(db);
+  const prefs = await loadReminderPrefs(db);
   const syncDoses = opts.doseReminders || !doseRemindersSynced;
   doseRemindersSynced = true;
   await Promise.all(
     states.map(async (s) => {
-      if (syncDoses) await syncDoseReminders(s);
-      await syncAlertReminders(s);
+      if (syncDoses) await syncDoseReminders(s, prefs.treatments);
+      await syncAlertReminders(s, prefs.renewal);
     }),
   ).catch(console.warn);
   return states;
@@ -277,11 +279,11 @@ const doseReminderIds = (id: number) => [`treatment-${id}`, ...[1, 2, 3, 4, 5, 6
 const renewalId = (id: number) => `treatment-${id}-renewal`;
 const prescriptionId = (id: number) => `treatment-${id}-rx`;
 
-async function syncDoseReminders({ treatment: t, regimen }: TreatmentState) {
+async function syncDoseReminders({ treatment: t, regimen }: TreatmentState, enabled: boolean) {
   await cancelScheduled(doseReminderIds(t.id));
-  if (!t.reminderTime || !regimen || regimen.frequency === "as_needed") return;
+  if (!enabled || !t.reminderTime || !regimen || regimen.frequency === "as_needed") return;
   const [hour, minute] = t.reminderTime.split(":").map(Number);
-  const title = `💊 ${t.name}`;
+  const title = t.name;
   const body = `${formatQty(regimen.doseQty, t.unit)}${regimen.dosesPerDay > 1 ? ` × ${regimen.dosesPerDay}` : ""}`;
   if (regimen.frequency === "daily") {
     await scheduleDaily(`treatment-${t.id}`, title, body, hour, minute, CHANNEL_TREATMENTS);
@@ -292,11 +294,15 @@ async function syncDoseReminders({ treatment: t, regimen }: TreatmentState) {
   }
 }
 
-async function syncAlertReminders({ treatment: t, forecast, prescriptionAlertOn }: TreatmentState) {
+async function syncAlertReminders({ treatment: t, forecast, prescriptionAlertOn }: TreatmentState, enabled: boolean) {
+  if (!enabled) {
+    await cancelScheduled([renewalId(t.id), prescriptionId(t.id)]);
+    return;
+  }
   if (forecast.renewalAlertOn && forecast.runOutOn) {
     await scheduleAt(
       renewalId(t.id),
-      `📦 ${t.name}`,
+      `Stock : ${t.name}`,
       `Environ ${t.renewalLeadDays} jours de stock (épuisement estimé le ${shortFrDate(forecast.runOutOn)}).`,
       atLocalTime(forecast.renewalAlertOn, ALERT_HOUR),
       CHANNEL_TREATMENTS,
@@ -307,7 +313,7 @@ async function syncAlertReminders({ treatment: t, forecast, prescriptionAlertOn 
   if (t.prescriptionExpiresOn && prescriptionAlertOn) {
     await scheduleAt(
       prescriptionId(t.id),
-      `📄 Ordonnance ${t.name}`,
+      `Ordonnance ${t.name}`,
       `Elle expire le ${formatFrDate(t.prescriptionExpiresOn)}.`,
       atLocalTime(prescriptionAlertOn, ALERT_HOUR),
       CHANNEL_TREATMENTS,

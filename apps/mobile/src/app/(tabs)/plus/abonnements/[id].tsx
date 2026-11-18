@@ -162,7 +162,7 @@ export default function SubscriptionEditScreen() {
     priceCents && anchorDay ? nextRenewals(anchorDay, cycle, today(), 3).map(shortFrDate).join(", ") : null;
 
   return (
-    <Screen back title={isNew ? "Nouvel abonnement" : name || "Abonnement"} subtitle={status === "cancelled" ? "Résilié" : undefined}>
+    <Screen back domain="epargne" title={isNew ? "Nouvel abonnement" : name || "Abonnement"} subtitle={status === "cancelled" ? "Résilié" : undefined}>
       <Card title="Abonnement" icon="card-outline" color="epargne" index={0}>
         <Field label="Nom" value={name} onChangeText={edit("name", setName)} error={errors.name} placeholder="ex. Netflix" />
         <View style={{ gap: 6 }}>

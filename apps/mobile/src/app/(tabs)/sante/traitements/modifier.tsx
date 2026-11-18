@@ -29,7 +29,7 @@ const isWholeDays = (n: number) => Number.isInteger(n) && n >= 0;
 
 export default function TreatmentEditScreen() {
   const db = useSQLiteContext();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id = "new" } = useLocalSearchParams<{ id?: string }>();
   const isNew = id === "new";
 
   const [name, setName] = useState("");
@@ -149,7 +149,7 @@ export default function TreatmentEditScreen() {
   const packageWord = unit === "ml" ? "flacon" : "boîte";
 
   return (
-    <Screen back title={isNew ? "Nouveau traitement" : name || "Traitement"} subtitle={isNew ? undefined : "Modifier le traitement"}>
+    <Screen back domain="sante" title={isNew ? "Nouveau traitement" : name || "Traitement"} subtitle={isNew ? undefined : "Modifier le traitement"}>
       <Card title="Posologie" icon="medkit-outline" color="sante" index={0}>
         <Field label="Nom" value={name} onChangeText={edit("name", setName)} error={errors.name} />
         <View style={{ gap: 6 }}>

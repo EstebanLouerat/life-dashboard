@@ -25,14 +25,7 @@ import { useWorkoutRunner } from "@/components/WorkoutRunner";
 import { api } from "@/lib/api";
 import { today } from "@/lib/dates";
 import { haptics } from "@/lib/haptics";
-import { groupBlocks, setsLabel } from "@/lib/workoutTimeline";
-
-export const RPE_LABEL: Record<Rpe, string> = {
-  "trop-facile": "Trop facile",
-  ok: "OK",
-  dur: "Dur",
-  "trop-dur": "Trop dur",
-};
+import { groupBlocks, RPE_LABEL, setsLabel } from "@/lib/workoutTimeline";
 
 type Focus = WorkoutRequest["focus"];
 type Session = { id: number; data: WorkoutSession; rpe: Rpe | null };
