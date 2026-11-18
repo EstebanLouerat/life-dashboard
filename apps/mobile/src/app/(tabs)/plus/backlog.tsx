@@ -95,7 +95,7 @@ export default function BacklogScreen() {
       {!state.configured ? (
         <Card index={0}>
           <EmptyState icon="git-branch-outline" title="Backlog non relié" body="Renseigne le dépôt GitHub et un jeton limité à ce dépôt dans Réglages." />
-          <Button label="Ouvrir Réglages" icon="settings-outline" variant="soft" onPress={() => router.navigate("/reglages")} />
+          <Button label="Ouvrir Réglages" icon="settings-outline" variant="soft" onPress={() => router.navigate("/plus/reglages")} />
         </Card>
       ) : null}
 

@@ -148,7 +148,7 @@ export function IconButton({
   icon: IconName;
   label: string;
   onPress: () => void;
-  variant?: "glass" | "surface" | "soft" | "ghost" | "outline" | "lens";
+  variant?: "glass" | "surface" | "soft" | "ghost" | "outline" | "lens" | "danger";
   size?: number;
   disabled?: boolean;
   haptic?: boolean;
@@ -158,8 +158,8 @@ export function IconButton({
   const a = useAccent();
   const press = usePressScale(0.92);
   const v = variant === "surface" ? "glass" : variant;
-  const bg = v === "glass" ? t.glass : v === "soft" ? a.surfaceAccent : v === "lens" ? t.lens : "transparent";
-  const fg = color ?? (v === "soft" ? a.onAccentSoft : t.text);
+  const bg = v === "glass" ? t.glass : v === "soft" ? a.surfaceAccent : v === "lens" ? t.lens : v === "danger" ? t.dangerSoft : "transparent";
+  const fg = color ?? (v === "soft" ? a.onAccentSoft : v === "danger" ? t.danger : t.text);
   return (
     <AnimatedPressable
       accessibilityRole="button"
@@ -191,7 +191,7 @@ export function IconButton({
       ]}
     >
       {v === "glass" ? <GlassSpecular radius={size / 2} /> : null}
-      <Icon name={icon} size={size >= 56 ? 24 : 22} color={fg} />
+      <Icon name={icon} size={size >= 56 ? 24 : size < 36 ? 18 : 22} color={fg} />
     </AnimatedPressable>
   );
 }

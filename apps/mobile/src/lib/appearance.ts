@@ -8,6 +8,8 @@ export type ThemePreference = "system" | "light" | "dark";
  * alerts, keyboard). Stored in the settings table under "theme".
  */
 export function applyThemePreference(pref: ThemePreference) {
+  // Not implemented by react-native-web: the web preview follows the browser's scheme.
+  if (typeof Appearance.setColorScheme !== "function") return;
   Appearance.setColorScheme(pref === "system" ? "unspecified" : pref);
 }
 

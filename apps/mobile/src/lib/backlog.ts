@@ -1,5 +1,5 @@
 import type { SQLiteDatabase } from "expo-sqlite";
-import * as SecureStore from "expo-secure-store";
+import { secrets } from "@/lib/secrets";
 import type { BacklogItem, BacklogProvider, BacklogStatus, NewBacklogItem } from "@ld/contracts";
 import { BacklogOffline, githubProvider, parseRepo } from "@/lib/backlogGithub";
 
@@ -7,7 +7,7 @@ import { BacklogOffline, githubProvider, parseRepo } from "@/lib/backlogGithub";
  * Backlog on the phone: a local copy of the issues for offline reading, and
  * an outbox for changes made without network (sent oldest first at the next
  * sync). The provider is GitHub today; screens only see BacklogItem.
- * The token sits in SecureStore, never in SQLite, a log or an error.
+ * The token sits in SecureStore (lib/secrets), never in SQLite, a log or an error.
  */
 
 const TOKEN_KEY = "backlog_github_token";
@@ -56,20 +56,20 @@ export type BacklogState = {
 
 export async function getBacklogConfig(db: SQLiteDatabase): Promise<{ repo: string; hasToken: boolean }> {
   const row = await db.getFirstAsync<{ value: string }>("SELECT value FROM settings WHERE key = 'backlog_repo'");
-  const token = await SecureStore.getItemAsync(TOKEN_KEY);
+  const token = await secrets.get(TOKEN_KEY);
   return { repo: row?.value ?? "", hasToken: !!token };
 }
 
 /** Saves the repository; a blank token keeps the stored one. */
 export async function saveBacklogConfig(db: SQLiteDatabase, repo: string, token: string): Promise<void> {
   await db.runAsync("INSERT OR REPLACE INTO settings (key, value) VALUES ('backlog_repo', ?)", repo.trim());
-  if (token.trim()) await SecureStore.setItemAsync(TOKEN_KEY, token.trim());
+  if (token.trim()) await secrets.set(TOKEN_KEY, token.trim());
 }
 
 async function provider(db: SQLiteDatabase): Promise<BacklogProvider | null> {
   const { repo } = await getBacklogConfig(db);
   const parsed = parseRepo(repo);
-  const token = await SecureStore.getItemAsync(TOKEN_KEY);
+  const token = await secrets.get(TOKEN_KEY);
   return parsed && token ? githubProvider({ ...parsed, token }) : null;
 }
 

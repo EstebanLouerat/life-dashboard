@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { View } from "react-native";
+import { Platform, View } from "react-native";
 import { useFocusEffect } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import {
@@ -30,6 +30,7 @@ import { refreshHairChecks } from "@/lib/hairChecks";
 import { notificationsAvailable } from "@/lib/notifications";
 import { loadReminderPrefs, saveReminderPrefs } from "@/lib/reminderSettings";
 import { DEFAULT_PREFS, HYDRATION_END_HOUR, HYDRATION_INTERVALS, HYDRATION_START_HOUR, hydrationTimes, intervalLabel, WORKOUT_REMINDER, type ReminderPrefs } from "@/lib/reminders";
+import { secrets } from "@/lib/secrets";
 import { intSetting, readSettings, writeSetting } from "@/lib/settings";
 import { refreshTreatments } from "@/lib/treatments";
 
@@ -190,7 +191,7 @@ export default function SettingsScreen() {
           autoCapitalize="none"
           autoCorrect={false}
           secureTextEntry
-          helper="Stockée chiffrée sur ce téléphone."
+          helper={secrets.persistent ? "Stockée chiffrée sur ce téléphone." : "Aperçu web : gardée en mémoire jusqu'au rechargement de la page."}
         />
         <ListRow icon="server-outline" title="État" subtitle={serverLine.text} subtitleTone={serverLine.tone === "accent" ? "accent" : serverLine.tone === "muted" ? "muted" : serverLine.tone} />
         <Button variant="outline" icon="refresh" label="Tester la connexion" loading={testing} onPress={testServer} />
@@ -224,7 +225,11 @@ export default function SettingsScreen() {
 
       <SectionTitle>Rappels</SectionTitle>
       {!notificationsAvailable() ? (
-        <Notice tone="info">Expo Go sur Android : les rappels ne partent pas. Tes choix sont gardés pour le build, et les alertes restent visibles dans Aujourd'hui.</Notice>
+        <Notice tone="info">
+          {Platform.OS === "web"
+            ? "Aperçu web : pas de rappels. Tes choix sont gardés, et les alertes restent visibles dans Aujourd'hui."
+            : "Expo Go sur Android : les rappels ne partent pas. Tes choix sont gardés pour le build, et les alertes restent visibles dans Aujourd'hui."}
+        </Notice>
       ) : null}
       <Card style={{ gap: 0 }}>
         <ListRow

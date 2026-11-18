@@ -1,4 +1,4 @@
-import * as SecureStore from "expo-secure-store";
+import { secrets } from "@/lib/secrets";
 import {
   APP_KEY_HEADER,
   GroceryPlan,
@@ -14,15 +14,15 @@ const APP_KEY = "api_app_key";
 
 export async function getApiConfig() {
   const [baseUrl, appKey] = await Promise.all([
-    SecureStore.getItemAsync(URL_KEY),
-    SecureStore.getItemAsync(APP_KEY),
+    secrets.get(URL_KEY),
+    secrets.get(APP_KEY),
   ]);
   return { baseUrl: baseUrl ?? "", appKey: appKey ?? "" };
 }
 
 export async function setApiConfig(baseUrl: string, appKey: string) {
-  await SecureStore.setItemAsync(URL_KEY, baseUrl.trim().replace(/\/+$/, ""));
-  await SecureStore.setItemAsync(APP_KEY, appKey.trim());
+  await secrets.set(URL_KEY, baseUrl.trim().replace(/\/+$/, ""));
+  await secrets.set(APP_KEY, appKey.trim());
 }
 
 export class ApiError extends Error {}

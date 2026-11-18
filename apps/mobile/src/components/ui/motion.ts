@@ -1,3 +1,4 @@
+import { Platform } from "react-native";
 import {
   Easing,
   FadeIn,
@@ -16,6 +17,8 @@ import {
  * every timing starts from the value on screen, so a new press or tap
  * redirects an animation mid-flight instead of waiting for it.
  */
+const WEB = Platform.OS === "web";
+
 export const EASE_OUT = Easing.out(Easing.cubic);
 /** Mirror of EASE_OUT for exits: leaves the way it came in. */
 export const EASE_IN = Easing.in(Easing.cubic);
@@ -53,13 +56,15 @@ export function usePressScale(to = PRESSED_SCALE) {
  * capped so the last card never waits more than 160 ms behind the first.
  */
 export function entering(index: number) {
+  // Web preview: Reanimated's layout animations misplace siblings there, so cards just appear.
+  if (WEB) return undefined;
   return FadeInDown.delay(Math.min(index, 4) * 40)
     .duration(280)
     .easing(EASE_OUT)
     .withInitialValues({ transform: [{ translateY: 12 }] });
 }
 
-export const layoutTransition = LinearTransition.duration(240).easing(EASE_OUT);
+export const layoutTransition = WEB ? undefined : LinearTransition.duration(240).easing(EASE_OUT);
 
 /** Content revealed in place (an inline editor, a day panel). Exits faster than it enters. */
 export const reveal = FadeIn.duration(200).easing(EASE_OUT);

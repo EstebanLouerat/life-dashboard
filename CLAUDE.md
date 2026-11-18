@@ -5,6 +5,7 @@ Personal Android app (Expo) + Next.js API + shared zod contracts. Always load th
 Commands (repo root):
 - `npm run api` — start the API on port 3000 (needs `apps/api/.env.local`)
 - `npm run mobile` — start the Expo dev server
+- `npm run web` — browser preview of the app (same code, react-native-web): SQLite lives in the browser, no notifications, server key and GitHub token kept in memory only (re-enter after a reload). Android stays the target
 - `npm run typecheck` — typecheck every workspace
 - `npm test` — unit tests (`node --test` on `apps/mobile/src/lib/*.test.ts`)
 

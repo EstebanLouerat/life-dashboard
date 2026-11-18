@@ -20,6 +20,11 @@ let cached: NotificationsModule | null | undefined;
  */
 function getNotifications(): NotificationsModule | null {
   if (cached !== undefined) return cached;
+  if (Platform.OS === "web") {
+    // Web preview: no scheduled local notifications; Today's tiles cover the alerts.
+    cached = null;
+    return cached;
+  }
   if (Platform.OS === "android" && isRunningInExpoGo()) {
     console.warn("[notifications] Expo Go on Android: expo-notifications not loaded, reminders disabled.");
     cached = null;

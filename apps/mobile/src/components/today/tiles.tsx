@@ -26,7 +26,7 @@ import { haptics } from "@/lib/haptics";
 import { formatCents } from "@/lib/money";
 import { fundingOrder } from "@/lib/savings";
 import { previousNights, nightsSummary, SLEEP_BUCKETS, weekdayInitial, type Bucket, type Night } from "@/lib/sleep";
-import { isScheduled } from "@/lib/stock";
+import { isScheduled, regimenOn } from "@/lib/stock";
 import type { MoneyAlert } from "@/lib/subscriptions";
 import { dueAlerts, formatQty, stockLine, stockShort, type DoseRow, type TreatmentState } from "@/lib/treatments";
 import type { HairState } from "@/lib/hairChecks";
@@ -116,10 +116,12 @@ export function TreatmentsTile({
     })),
   );
   const done = rows.filter((r) => r.dose).length;
+  // Yesterday's open slots, with the regimen that was in force yesterday (none before a treatment starts).
   const late = states.flatMap((s) => {
-    if (!isScheduled(s.regimen, yesterday)) return [];
+    const then = regimenOn(s.regimens, yesterday);
+    if (!then || !isScheduled(then, yesterday)) return [];
     const logged = new Set(s.doses.filter((d) => d.day === yesterday).map((d) => d.slot));
-    return Array.from({ length: s.regimen!.dosesPerDay }, (_, i) => i + 1)
+    return Array.from({ length: then.dosesPerDay }, (_, i) => i + 1)
       .filter((slot) => !logged.has(slot))
       .map((slot) => ({ s, slot }));
   });

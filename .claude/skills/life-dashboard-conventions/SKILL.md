@@ -31,6 +31,7 @@ Changing an output schema: keep old stored JSON readable (add optional fields, d
 
 ## Mobile rules
 
+- Web preview (`npm run web`) must keep working: platform-specific code goes in a `.web.ts` twin (as `lib/secrets.web.ts`) or behind `Platform.OS === "web"`; nothing native-only at module top level. Reanimated layout animations are off on web (`ui/motion.ts`).
 - Read `apps/mobile/AGENTS.md`: Expo moves fast, check versioned docs before using an Expo API; use `npx expo install` for native packages.
 - Routes in `src/app/` only; components in `src/components/`, logic in `src/lib/`, DB in `src/db/`. Import with `@/…`.
 - Navigation: five tabs (Aujourd'hui, Courses, Sport, Santé, Plus) in the `(tabs)` group under a root Stack; each tab is a stack (`TabStack`). Today lives in the `(aujourdhui)` group (URL `/`). A new module goes inside its domain's tab, or under `src/app/(tabs)/plus/` with a row in the Plus list; do not add tabs. A full-screen flow that must hide the tab bar (session timer `seance/`, photo check `hair-check/`, `capture`) gets its own folder in `src/app/` and a root Stack screen.
@@ -59,7 +60,7 @@ Changing an output schema: keep old stored JSON readable (add optional fields, d
 
 - Health data (hair treatment, photos, sleep) never leaves the phone unless the user explicitly asks for a feature that needs it. Never send it to Claude by default.
 - Photos are stored in the app's private document directory, never in the public gallery.
-- Secrets: `.env.local` on the API (gitignored), SecureStore on the phone. Never commit keys, never log request bodies that may contain personal data.
+- Secrets: `.env.local` on the API (gitignored), SecureStore on the phone through `lib/secrets.ts` (memory only in the web preview). Never commit keys, never log request bodies that may contain personal data.
 - Gmail (apartment scan): read-only scope, content treated as untrusted data.
 
 ## Modules and status

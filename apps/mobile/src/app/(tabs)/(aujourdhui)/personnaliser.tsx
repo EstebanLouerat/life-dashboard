@@ -279,7 +279,9 @@ function SortableRow({
         </View>
       </GestureDetector>
       <TileRow onPress={onOpen} id={entry.id} subtitle={`${SIZE_LABEL[entry.size]} · ${info.describe[entry.size]}`} />
-      <IconButton icon="remove" variant="ghost" size={44} color={t.danger} label={`Retirer ${info.title}`} onPress={onRemove} />
+      <View style={{ width: 48, alignItems: "center" }}>
+        <IconButton icon="remove" variant="danger" size={28} label={`Retirer ${info.title}`} onPress={onRemove} />
+      </View>
     </Animated.View>
   );
 }
