@@ -234,10 +234,11 @@ export async function migrate(db: SQLiteDatabase): Promise<void> {
 
   while (version < MIGRATIONS.length) {
     const sql = MIGRATIONS[version];
+    // The version is stored in the same transaction: a migration is either fully applied and counted, or not at all.
     await db.withTransactionAsync(async () => {
       await db.execAsync(sql);
+      await db.execAsync(`PRAGMA user_version = ${version + 1}`);
     });
     version += 1;
-    await db.execAsync(`PRAGMA user_version = ${version}`);
   }
 }

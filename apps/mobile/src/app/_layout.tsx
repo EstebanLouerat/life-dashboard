@@ -7,6 +7,7 @@ import * as SystemUI from "expo-system-ui";
 import { migrate } from "@/db/migrations";
 import { setupNotifications } from "@/lib/notifications";
 import { loadThemePreference } from "@/lib/appearance";
+import { loadReminderPrefs, saveReminderPrefs } from "@/lib/reminderSettings";
 import { useTheme } from "@/components/ui";
 import { WorkoutRunnerProvider } from "@/components/WorkoutRunner";
 
@@ -41,6 +42,10 @@ function AppStack() {
 
   useEffect(() => {
     loadThemePreference(db).catch(console.warn);
+    // Reschedules hydration and session reminders from the saved switches, which also drops pre-redesign ids.
+    loadReminderPrefs(db)
+      .then((prefs) => saveReminderPrefs(db, prefs))
+      .catch(console.warn);
   }, [db]);
 
   useEffect(() => {

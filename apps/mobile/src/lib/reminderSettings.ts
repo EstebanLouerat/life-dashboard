@@ -16,7 +16,16 @@ export async function loadReminderPrefs(db: SQLiteDatabase): Promise<ReminderPre
  * Treatment, renewal and photo reminders follow at their next refresh
  * (refreshTreatments / refreshHairChecks), which read the same preferences.
  */
-export async function saveReminderPrefs(db: SQLiteDatabase, prefs: ReminderPrefs): Promise<void> {
+export function saveReminderPrefs(db: SQLiteDatabase, prefs: ReminderPrefs): Promise<void> {
+  // One save at a time: a slider drag fires several, and interleaved cancel / schedule calls would mix two plans.
+  const run = queue.then(() => apply(db, prefs));
+  queue = run.catch(() => {});
+  return run;
+}
+
+let queue: Promise<void> = Promise.resolve();
+
+async function apply(db: SQLiteDatabase, prefs: ReminderPrefs): Promise<void> {
   for (const [key, value] of Object.entries(prefsToSettings(prefs))) await writeSetting(db, key, value);
   await cancelScheduled(HYDRATION_IDS);
   if (prefs.hydration) {

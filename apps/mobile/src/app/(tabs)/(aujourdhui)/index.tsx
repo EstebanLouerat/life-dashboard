@@ -1,5 +1,5 @@
-import { useCallback, useMemo, useState } from "react";
-import { View } from "react-native";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { AppState, View } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import { GroceryPlan, GroceryRequest, WorkoutSession } from "@ld/contracts";
@@ -133,10 +133,25 @@ export default function TodayScreen() {
     }, [load]),
   );
 
+  // Back in the app the next morning: show the new day.
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") load();
+    });
+    return () => sub.remove();
+  }, [load]);
+
+  /** Screen still showing an earlier day (open past midnight): refresh instead of logging on that day. */
+  const stale = () => {
+    if (!data || data.day === today()) return false;
+    load();
+    return true;
+  };
+
   // ── one-tap logs: shown on the tap, written, then confirmed by the reload ──
 
   const addWater = async (glasses: number) => {
-    if (!data) return;
+    if (!data || stale()) return;
     const ml = data.glass * glasses;
     const total = data.ml + ml;
     if (data.ml < data.goal && total >= data.goal) haptics.success();
@@ -187,7 +202,7 @@ export default function TodayScreen() {
   };
 
   const toggleDose = async ({ state: s, day, slot, dose }: DoseTap) => {
-    if (!data) return;
+    if (!data || stale()) return;
     const name = s.treatment.name;
     // Optimistic: the box changes with the tap.
     const doses = dose
@@ -217,7 +232,7 @@ export default function TodayScreen() {
   };
 
   const pickNight = async (bucket: Bucket | null) => {
-    if (!data) return;
+    if (!data || stale()) return;
     const before = data.tonight;
     setData({ ...data, tonight: bucket });
     await setNight(db, data.day, bucket);
@@ -377,10 +392,12 @@ export default function TodayScreen() {
             yesterday={addDays(data.day, -1)}
             onToggle={toggleDose}
             onYesterday={(s, slot, status) => {
+              if (stale()) return;
               haptics.success();
               logWithUndo(s, addDays(data.day, -1), slot, status, `${s.treatment.name} : hier noté ${status === "taken" ? "pris" : "manqué"}`);
             }}
             onAsNeeded={(s) => {
+              if (stale()) return;
               haptics.success();
               const next = Math.max(0, ...s.doses.filter((d) => d.day === data.day).map((d) => d.slot)) + 1;
               logWithUndo(s, data.day, next, "taken", `${s.treatment.name} : prise ajoutée`);
