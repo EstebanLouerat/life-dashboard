@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { AccessibilityInfo, View } from "react-native";
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
+import { scheduleOnRN } from "react-native-worklets";
 import { haptics } from "@/lib/haptics";
 import { GlassSpecular, PillButton } from "./controls";
 import { EASE_IN, EASE_OUT } from "./motion";
@@ -86,7 +87,10 @@ export function SnackbarHost() {
       setShown(snack);
       p.value = withTiming(1, { duration: 260, easing: EASE_OUT });
     } else {
-      p.value = withTiming(0, { duration: 180, easing: EASE_IN });
+      // Unmounted once faded out, so a screen reader can't reach a hidden message or its button.
+      p.value = withTiming(0, { duration: 180, easing: EASE_IN }, (done) => {
+        if (done) scheduleOnRN(setShown, null);
+      });
     }
   }, [snack, p]);
 
@@ -101,6 +105,8 @@ export function SnackbarHost() {
   return (
     <Animated.View
       accessibilityLiveRegion="polite"
+      importantForAccessibility={snack ? "auto" : "no-hide-descendants"}
+      accessibilityElementsHidden={!snack}
       style={[
         {
           flexDirection: "row",

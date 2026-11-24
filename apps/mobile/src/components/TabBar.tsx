@@ -119,6 +119,8 @@ export function TabBar({ state, descriptors, emitter, navigateToTab, insets }: T
       <View style={{ height: BAR, pointerEvents: "box-none" }}>
         <Animated.View
           accessibilityRole="tablist"
+          importantForAccessibility={collapsed ? "no-hide-descendants" : "auto"}
+          accessibilityElementsHidden={collapsed}
           onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
           style={[
             {
@@ -171,7 +173,11 @@ export function TabBar({ state, descriptors, emitter, navigateToTab, insets }: T
           })}
         </Animated.View>
 
-        <Animated.View style={[{ position: "absolute", left: 0, top: (BAR - 56) / 2, pointerEvents: collapsed ? "auto" : "none" }, mini]}>
+        <Animated.View
+          importantForAccessibility={collapsed ? "auto" : "no-hide-descendants"}
+          accessibilityElementsHidden={!collapsed}
+          style={[{ position: "absolute", left: 0, top: (BAR - 56) / 2, pointerEvents: collapsed ? "auto" : "none" }, mini]}
+        >
           <MiniButton
             icon={activeTab.icons[1]}
             domain={activeTab.domain}

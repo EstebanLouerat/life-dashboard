@@ -23,6 +23,7 @@ import type { LayoutEntry } from "@/lib/dashboard";
 import type { Run } from "@/components/WorkoutRunner";
 import { diffDays, shortFrDate } from "@/lib/dates";
 import { haptics } from "@/lib/haptics";
+import { waterGauge } from "@/lib/hydration";
 import { formatCents } from "@/lib/money";
 import { fundingOrder } from "@/lib/savings";
 import { previousNights, nightsSummary, SLEEP_BUCKETS, weekdayInitial, type Bucket, type Night } from "@/lib/sleep";
@@ -57,9 +58,7 @@ export function HydrationTile({
   hint: string | null;
   onAdd: (glasses: number) => void;
 }) {
-  const segments = Math.min(12, Math.max(1, Math.ceil(goal / glass)));
-  const filled = Math.floor(ml / glass);
-  const left = Math.max(0, segments - filled);
+  const { segments, filled, left } = waterGauge(ml, goal, glass);
   const note = left === 0 ? "Objectif du jour atteint" : `Encore ${left} verre${left > 1 ? "s" : ""}${hint ? ` · ${hint}` : ""}`;
   return (
     <Tile domain="eau" icon="water-outline" title="Hydratation" note={`objectif ${litres(goal)}`} index={index}>
