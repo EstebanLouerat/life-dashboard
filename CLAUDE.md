@@ -14,7 +14,7 @@ Commands (repo root):
 - Windows dev machine, no local Android SDK: never rely on `expo run:android` or Android Studio.
 - Testing happens in **Expo Go**: `npx expo start` in `apps/mobile`.
 - `expo-notifications` does not load in Expo Go on Android. It is loaded on demand in `src/lib/notifications.ts`; **never import it at the top of any file**. Every caller must handle "notifications unavailable" (`scheduleDaily` returns `false`, `notificationsAvailable()`).
-- Native builds go through **EAS cloud**. `expo-dev-client` and `eas.json` are not configured yet.
+- Native builds go through **EAS cloud** (`apps/mobile/eas.json`): `npx eas-cli build --platform android --profile preview` gives an installable APK; `production` is for the store (AAB). `expo-dev-client` is not configured.
 - The backend runs on the user's PC over plain HTTP (`http://<LAN IP>:3000`) during development. A release build must use HTTPS.
 
 ## Backlog (GitHub Issues)

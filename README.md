@@ -29,13 +29,19 @@ npm run api
 Le backend écoute sur le port 3000 de ton PC. Autorise Node.js dans le pare-feu Windows (réseau privé) pour que le téléphone puisse le joindre.
 
 ### 3. Installer l'app sur ton téléphone
-Prérequis : Android Studio (SDK Android) et ton téléphone branché en USB avec le **débogage USB** activé (Paramètres → À propos → appuyer 7 fois sur « Numéro de build », puis Options développeur).
+Pendant le développement : **Expo Go** (`npm run mobile`, puis scanner le QR code).
+
+Version installable, compilée dans le cloud par EAS (aucun SDK Android en local). Depuis `apps/mobile` :
 
 ```bash
-cd apps/mobile
-npx expo run:android
+npx eas-cli login
 ```
-Ça compile une version de développement, l'installe sur le téléphone et lance le serveur Expo. Ensuite, chaque modification du code se recharge en direct.
+```bash
+npx eas-cli build --platform android --profile preview
+```
+Le premier build demande de créer le projet Expo et ajoute son `projectId` dans `app.json` : commite ce changement. À la fin, EAS donne un lien et un QR code vers l'APK à installer sur le téléphone. Le profil `preview` sert aussi pour iOS (`--platform ios`), mais il produit une app pour le simulateur iOS, qui ne tourne que sur un Mac.
+
+Une APK compilée bloque le HTTP simple : elle ne joint le backend qu'en HTTPS (voir « Plus tard »). Les données locales (eau, sommeil, traitements, import JSON) marchent sans backend.
 
 ### 4. Connecter l'app au backend
 Onglet **Plus › Réglages**, section Serveur :
