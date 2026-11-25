@@ -27,6 +27,7 @@ import {
   useAccent,
   useTheme,
 } from "@/components/ui";
+import { AISLE_LABEL, AISLE_ORDER } from "@/lib/aisles";
 import { api } from "@/lib/api";
 import { addDays, atLocalTime, today } from "@/lib/dates";
 import { haptics } from "@/lib/haptics";
@@ -34,19 +35,6 @@ import { formatCents } from "@/lib/money";
 import { intSetting, readSettings, writeSetting } from "@/lib/settings";
 
 /** Aisles in walking order through the store. */
-const AISLE_LABEL: Record<Aisle, string> = {
-  "fruits-legumes": "Fruits et légumes",
-  boulangerie: "Boulangerie",
-  cremerie: "Crèmerie",
-  "viandes-poissons": "Boucherie et poissons",
-  "epicerie-salee": "Épicerie salée",
-  "epicerie-sucree": "Épicerie sucrée",
-  surgeles: "Surgelés",
-  boissons: "Boissons",
-  "hygiene-entretien": "Hygiène et entretien",
-  autre: "Autre",
-};
-const AISLE_ORDER = Object.keys(AISLE_LABEL) as Aisle[];
 const STORE_LABEL: Record<Store, string> = { lidl: "Lidl", auchan: "Auchan" };
 
 type Params = { days: number; people: number; budget: number; store: Store };

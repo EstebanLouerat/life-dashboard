@@ -14,6 +14,7 @@ Commands (repo root):
 - Windows dev machine, no local Android SDK: never rely on `expo run:android` or Android Studio.
 - Testing happens in **Expo Go**: `npx expo start` in `apps/mobile`.
 - `expo-notifications` does not load in Expo Go on Android. It is loaded on demand in `src/lib/notifications.ts`; **never import it at the top of any file**. Every caller must handle "notifications unavailable" (`scheduleDaily` returns `false`, `notificationsAvailable()`).
+- Native-only features are no-ops in Expo Go and on the web, and only an EAS build shows them: home-screen widgets (`react-native-android-widget`, `src/widgets/`, `widgetsAvailable`), notification buttons (background task registered in `src/background.ts`, imported first by `index.ts`), and the ongoing session notification + floating capsule (local Expo module `modules/live-session`, Kotlin, `src/lib/liveSession.ts`). Never import `react-native-android-widget` at the top of a file either (it throws without its native module); `import type` is fine for both libraries.
 - Native builds go through **EAS cloud** (`apps/mobile/eas.json`): `npx eas-cli build --platform android --profile preview` gives an installable APK; `production` is for the store (AAB). `expo-dev-client` is not configured.
 - The backend runs on the user's PC over plain HTTP (`http://<LAN IP>:3000`) during development. A release build must use HTTPS.
 

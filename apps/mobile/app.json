@@ -32,12 +32,98 @@
       "expo-router",
       "expo-sqlite",
       "expo-secure-store",
-      "expo-notifications",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/android-icon-monochrome.png",
+          "color": "#33424D"
+        }
+      ],
       "expo-font",
       [
         "expo-camera",
         {
           "recordAudioAndroid": false
+        }
+      ],
+      [
+        "react-native-android-widget",
+        {
+          "fonts": [
+            "../../node_modules/@expo/vector-icons/build/vendor/react-native-vector-icons/Fonts/Ionicons.ttf"
+          ],
+          "widgets": [
+            {
+              "name": "Water",
+              "label": "Eau",
+              "description": "Ajoute un verre d'un geste (1×1, 2×1 ou plus grand)",
+              "minWidth": "40dp",
+              "minHeight": "40dp",
+              "targetCellWidth": 2,
+              "targetCellHeight": 1,
+              "maxResizeWidth": "420dp",
+              "maxResizeHeight": "420dp",
+              "resizeMode": "horizontal|vertical",
+              "widgetCategory": "home_screen",
+              "updatePeriodMillis": 1800000
+            },
+            {
+              "name": "Treatments",
+              "label": "Traitements",
+              "description": "Coche les prises du jour",
+              "minWidth": "110dp",
+              "minHeight": "40dp",
+              "targetCellWidth": 2,
+              "targetCellHeight": 2,
+              "maxResizeWidth": "420dp",
+              "maxResizeHeight": "420dp",
+              "resizeMode": "horizontal|vertical",
+              "widgetCategory": "home_screen",
+              "updatePeriodMillis": 1800000
+            },
+            {
+              "name": "Sleep",
+              "label": "Sommeil",
+              "description": "Note ta nuit en un geste",
+              "minWidth": "180dp",
+              "minHeight": "40dp",
+              "targetCellWidth": 4,
+              "targetCellHeight": 1,
+              "maxResizeWidth": "420dp",
+              "maxResizeHeight": "420dp",
+              "resizeMode": "horizontal|vertical",
+              "widgetCategory": "home_screen",
+              "updatePeriodMillis": 1800000
+            },
+            {
+              "name": "Groceries",
+              "label": "Courses",
+              "description": "La liste à cocher en magasin, et le dîner du soir",
+              "minWidth": "110dp",
+              "minHeight": "110dp",
+              "targetCellWidth": 3,
+              "targetCellHeight": 3,
+              "maxResizeWidth": "420dp",
+              "maxResizeHeight": "420dp",
+              "resizeMode": "horizontal|vertical",
+              "widgetCategory": "home_screen",
+              "updatePeriodMillis": 1800000
+            },
+            {
+              "name": "Workout",
+              "label": "Séance",
+              "description": "Lance la séance du jour et pilote-la : précédent, pause, suivant, arrêt",
+              "minWidth": "180dp",
+              "minHeight": "40dp",
+              "targetCellWidth": 4,
+              "targetCellHeight": 2,
+              "maxResizeWidth": "420dp",
+              "maxResizeHeight": "420dp",
+              "resizeMode": "horizontal|vertical",
+              "widgetCategory": "home_screen",
+              "updatePeriodMillis": 1800000
+            }
+          ]
         }
       ]
     ],

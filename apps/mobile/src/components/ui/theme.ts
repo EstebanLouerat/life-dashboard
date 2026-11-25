@@ -209,6 +209,9 @@ const dark: typeof light = {
 
 export type Theme = typeof light & { dark: boolean };
 
+/** Both palettes, for what draws outside React's tree (home-screen widgets). */
+export const palettes = { light, dark };
+
 export function useTheme(): Theme {
   const isDark = useColorScheme() === "dark";
   return isDark ? { ...dark, dark: true } : { ...light, dark: false };

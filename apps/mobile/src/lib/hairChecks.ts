@@ -139,6 +139,7 @@ export async function refreshHairChecks(db: SQLiteDatabase, opts: { reminder?: b
         10,
         0,
         CHANNEL_TREATMENTS,
+        { domain: "sante", url: "/hair-check" },
       );
     } else {
       await cancelScheduled([REMINDER_ID]);

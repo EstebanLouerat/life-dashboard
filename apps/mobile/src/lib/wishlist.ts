@@ -124,11 +124,17 @@ export async function refreshWishlist(db: SQLiteDatabase): Promise<WishlistState
           "Fin de la période de réflexion. Toujours envie ?",
           atLocalTime(i.coolingUntil, REMINDER_HOUR),
           CHANNEL_MONEY,
+          { domain: "epargne", url: `/plus/wishlist/${i.id}` },
         )
       : cancelScheduled([`wish-${i.id}-cooling`]),
   );
   if (tracksSavings(state)) {
-    jobs.push(scheduleMonthly(BALANCE_REMINDER_ID, "Épargne", "Nouveau mois : saisis ton solde d'épargne.", 1, REMINDER_HOUR, 0, CHANNEL_MONEY));
+    jobs.push(
+      scheduleMonthly(BALANCE_REMINDER_ID, "Épargne", "Nouveau mois : saisis ton solde d'épargne.", 1, REMINDER_HOUR, 0, CHANNEL_MONEY, {
+        domain: "epargne",
+        url: "/plus/wishlist",
+      }),
+    );
   }
   await Promise.all(jobs).catch(console.warn);
   return state;

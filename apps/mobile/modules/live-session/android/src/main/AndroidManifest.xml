@@ -1,0 +1,17 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+  <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+
+  <application>
+    <!-- The workout timer the user started: ongoing notification with a countdown, and the floating capsule. -->
+    <service
+      android:name="expo.modules.livesession.LiveSessionService"
+      android:exported="false"
+      android:foregroundServiceType="specialUse">
+      <property
+        android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+        android:value="Minuteur d'une séance de sport lancée par l'utilisateur" />
+    </service>
+  </application>
+</manifest>

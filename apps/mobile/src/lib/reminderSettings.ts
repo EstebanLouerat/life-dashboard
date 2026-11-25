@@ -31,11 +31,18 @@ async function apply(db: SQLiteDatabase, prefs: ReminderPrefs): Promise<void> {
   if (prefs.hydration) {
     const times = hydrationTimes(prefs.hydrationInterval);
     for (const [i, t] of times.entries()) {
-      await scheduleDaily(`hydration-${i}`, "Hydratation", "Un verre d'eau ?", t.hour, t.minute, CHANNEL_REMINDERS);
+      await scheduleDaily(`hydration-${i}`, "Hydratation", "Un verre d'eau ?", t.hour, t.minute, CHANNEL_REMINDERS, {
+        domain: "eau",
+        category: "hydration",
+        url: "/",
+      });
     }
   }
   if (prefs.workout) {
-    await scheduleDaily(WORKOUT_ID, "Séance du jour", "10 minutes, c'est parti.", WORKOUT_REMINDER.hour, WORKOUT_REMINDER.minute, CHANNEL_REMINDERS);
+    await scheduleDaily(WORKOUT_ID, "Séance du jour", "10 minutes, c'est parti.", WORKOUT_REMINDER.hour, WORKOUT_REMINDER.minute, CHANNEL_REMINDERS, {
+      domain: "sport",
+      url: "/sport",
+    });
   } else {
     await cancelScheduled([WORKOUT_ID]);
   }

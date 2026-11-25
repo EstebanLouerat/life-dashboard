@@ -285,16 +285,18 @@ async function syncDoseReminders({ treatment: t, regimen }: TreatmentState, enab
   const [hour, minute] = t.reminderTime.split(":").map(Number);
   const title = t.name;
   const body = `${formatQty(regimen.doseQty, t.unit)}${regimen.dosesPerDay > 1 ? ` × ${regimen.dosesPerDay}` : ""}`;
+  const extra = { domain: "sante", category: "treatment", url: `/sante/traitements/${t.id}`, data: { treatmentId: t.id } } as const;
   if (regimen.frequency === "daily") {
-    await scheduleDaily(`treatment-${t.id}`, title, body, hour, minute, CHANNEL_TREATMENTS);
+    await scheduleDaily(`treatment-${t.id}`, title, body, hour, minute, CHANNEL_TREATMENTS, extra);
   } else {
     for (const w of regimen.weekdays) {
-      await scheduleWeekly(`treatment-${t.id}-wd${w}`, title, body, w, hour, minute, CHANNEL_TREATMENTS);
+      await scheduleWeekly(`treatment-${t.id}-wd${w}`, title, body, w, hour, minute, CHANNEL_TREATMENTS, extra);
     }
   }
 }
 
 async function syncAlertReminders({ treatment: t, forecast, prescriptionAlertOn }: TreatmentState, enabled: boolean) {
+  const extra = { domain: "sante", url: `/sante/traitements/${t.id}` } as const;
   if (!enabled) {
     await cancelScheduled([renewalId(t.id), prescriptionId(t.id)]);
     return;
@@ -306,6 +308,7 @@ async function syncAlertReminders({ treatment: t, forecast, prescriptionAlertOn 
       `Environ ${t.renewalLeadDays} jours de stock (épuisement estimé le ${shortFrDate(forecast.runOutOn)}).`,
       atLocalTime(forecast.renewalAlertOn, ALERT_HOUR),
       CHANNEL_TREATMENTS,
+      extra,
     );
   } else {
     await cancelScheduled([renewalId(t.id)]);
@@ -317,6 +320,7 @@ async function syncAlertReminders({ treatment: t, forecast, prescriptionAlertOn 
       `Elle expire le ${formatFrDate(t.prescriptionExpiresOn)}.`,
       atLocalTime(prescriptionAlertOn, ALERT_HOUR),
       CHANNEL_TREATMENTS,
+      extra,
     );
   } else {
     await cancelScheduled([prescriptionId(t.id)]);

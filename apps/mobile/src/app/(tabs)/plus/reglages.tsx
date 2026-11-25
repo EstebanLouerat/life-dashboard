@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Platform, View } from "react-native";
+import { Alert, Platform, View } from "react-native";
 import { useFocusEffect } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import {
@@ -26,6 +26,7 @@ import { loadThemePreference, saveThemePreference, type ThemePreference } from "
 import { getBacklogConfig, saveBacklogConfig, syncBacklog } from "@/lib/backlog";
 import { parseRepo } from "@/lib/backlogGithub";
 import { haptics } from "@/lib/haptics";
+import { liveSession } from "@/lib/liveSession";
 import { refreshHairChecks } from "@/lib/hairChecks";
 import { notificationsAvailable } from "@/lib/notifications";
 import { loadReminderPrefs, saveReminderPrefs } from "@/lib/reminderSettings";
@@ -33,6 +34,7 @@ import { DEFAULT_PREFS, HYDRATION_END_HOUR, HYDRATION_INTERVALS, HYDRATION_START
 import { secrets } from "@/lib/secrets";
 import { intSetting, readSettings, writeSetting } from "@/lib/settings";
 import { refreshTreatments } from "@/lib/treatments";
+import { runner } from "@/components/WorkoutRunner";
 
 type Status = { tone: "success" | "warning" | "danger"; text: string } | null;
 type Server = { status: "ok" | "refused" | "error" | null; at: string | null };
@@ -59,6 +61,7 @@ export default function SettingsScreen() {
   const [editing, setEditing] = useState<"goal" | "glass" | null>(null);
   const [draft, setDraft] = useState(0);
   const [prefs, setPrefs] = useState<ReminderPrefs>(DEFAULT_PREFS);
+  const [bubble, setBubble] = useState(false);
   const [backlogRepo, setBacklogRepo] = useState("");
   const [backlogToken, setBacklogToken] = useState("");
   const [backlogHasToken, setBacklogHasToken] = useState(false);
@@ -84,10 +87,28 @@ export default function SettingsScreen() {
         setGoal(intSetting(s, "hydration_goal_ml", 2000));
         setGlass(intSetting(s, "glass_ml", 250));
         setServer({ status: (s.api_status as Server["status"]) || null, at: s.api_checked_at || null });
+        setBubble(s.live_bubble === "1");
       });
       loadReminderPrefs(db).then(setPrefs);
     }, [db]),
   );
+
+  const toggleBubble = async (on: boolean) => {
+    if (on && !liveSession.canDrawOverlays()) {
+      Alert.alert(
+        "Autoriser la capsule",
+        "Android demande l'accès « Afficher par-dessus les autres apps ». Active-le pour Life Dashboard, puis reviens activer la capsule.",
+        [
+          { text: "Annuler", style: "cancel" },
+          { text: "Ouvrir les réglages", onPress: () => liveSession.openOverlaySettings() },
+        ],
+      );
+      return;
+    }
+    setBubble(on);
+    runner.setBubble(on);
+    await writeSetting(db, "live_bubble", on ? "1" : "0");
+  };
 
   const testServer = async () => {
     setTesting(true);
@@ -289,6 +310,23 @@ export default function SettingsScreen() {
           right={<Switch domain="sport" label="Rappel de la séance du jour" value={prefs.workout} onChange={(v) => updatePrefs({ ...prefs, workout: v })} />}
         />
       </Card>
+
+      <SectionTitle>Séance en cours</SectionTitle>
+      {liveSession.available ? (
+        <Card style={{ gap: 0 }}>
+          <ListRow
+            icon="timer-outline"
+            iconColor="sport"
+            title="Capsule flottante"
+            subtitle="Le minuteur par-dessus les autres apps, déplaçable. La notification de séance reste toujours là."
+            right={<Switch domain="sport" label="Capsule flottante pendant une séance" value={bubble} onChange={toggleBubble} />}
+          />
+        </Card>
+      ) : (
+        <Notice tone="info">
+          Notification de séance (minuteur, pause, suivant, arrêt) et capsule flottante : dans le build Android (APK EAS), pas dans Expo Go ni l'aperçu web.
+        </Notice>
+      )}
 
       <SectionTitle>Backlog</SectionTitle>
       <Card>

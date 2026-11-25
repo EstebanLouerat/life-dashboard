@@ -1,7 +1,9 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Alert, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
+import { useSQLiteContext } from "expo-sqlite";
+import { WorkoutSession } from "@ld/contracts";
 import {
   Button,
   Card,
@@ -15,7 +17,7 @@ import {
   useTheme,
   Wash,
 } from "@/components/ui";
-import { useWorkoutRunner } from "@/components/WorkoutRunner";
+import { runner, useWorkoutRunner } from "@/components/WorkoutRunner";
 import { BLOCK_LABEL, clock, setsLabel } from "@/lib/workoutTimeline";
 
 /**
@@ -28,12 +30,26 @@ export default function TimerScreen() {
   const t = useTheme();
   const a = useAccent("sport");
   const insets = useSafeAreaInsets();
+  const db = useSQLiteContext();
+  const { start } = useLocalSearchParams<{ start?: string }>();
   const { run, remaining, togglePause, next, previous, stop } = useWorkoutRunner();
+  const startTried = useRef(false);
 
   useEffect(() => {
-    if (!run) router.back();
-    else if (run.finished) router.replace("/seance/ressenti");
-  }, [run]);
+    const leave = () => (router.canGoBack() ? router.back() : router.replace("/sport"));
+    if (run) {
+      if (run.finished) router.replace("/seance/ressenti");
+      return;
+    }
+    // Opened from the widget's "Commencer" (?start=<session id>): start it once, never again after a stop.
+    if (!start || startTried.current) return leave();
+    startTried.current = true;
+    db.getFirstAsync<{ session_json: string }>("SELECT session_json FROM workout_sessions WHERE id = ?", Number(start)).then((row) => {
+      const parsed = row ? WorkoutSession.safeParse(JSON.parse(row.session_json)) : null;
+      if (parsed?.success) runner.start(Number(start), parsed.data);
+      else leave();
+    });
+  }, [run, start, db]);
 
   if (!run || run.finished) return <View style={{ flex: 1, backgroundColor: t.bg }} />;
 

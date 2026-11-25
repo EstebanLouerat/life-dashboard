@@ -1,5 +1,7 @@
 import { Platform } from "react-native";
 import { isRunningInExpoGo } from "expo";
+import type { NotificationResponse, NotificationTaskPayload } from "expo-notifications";
+import { palettes, type Domain } from "@/components/ui/theme";
 
 type NotificationsModule = typeof import("expo-notifications");
 
@@ -72,8 +74,83 @@ export async function setupNotifications(): Promise<boolean> {
       importance: N.AndroidImportance.DEFAULT,
     });
   }
+  await setCategories(N);
   const { granted } = await N.requestPermissionsAsync();
   return granted;
+}
+
+/** Buttons shown when a notification is expanded (see lib/notificationActions). */
+export type Category = "hydration" | "treatment";
+
+async function setCategories(N: NotificationsModule) {
+  const background = { opensAppToForeground: false };
+  await N.setNotificationCategoryAsync("hydration", [{ identifier: "water", buttonTitle: "+1 verre", options: background }]);
+  await N.setNotificationCategoryAsync("treatment", [
+    { identifier: "take", buttonTitle: "Pris", options: background },
+    { identifier: "snooze", buttonTitle: "Dans 15 min", options: background },
+  ]);
+}
+
+/**
+ * What a reminder carries besides its text: the module colour (One UI shows
+ * the app icon on the left and tints the small icon and the buttons with it),
+ * its buttons, the screen a tap opens, and data for the buttons.
+ */
+export type Extra = { domain?: Domain; category?: Category; url?: string; data?: Record<string, string | number> };
+
+function content(title: string, body: string, extra: Extra) {
+  return {
+    title,
+    body,
+    color: extra.domain ? palettes.light.domain[extra.domain].accent : undefined,
+    categoryIdentifier: extra.category,
+    data: { ...extra.data, ...(extra.url ? { url: extra.url } : {}) },
+  };
+}
+
+const NOTIFICATION_TASK = "notification-actions";
+
+/**
+ * Notification buttons tapped while the app is in the background or killed
+ * run as a task (Android). Call at startup, in the global scope of the entry.
+ */
+export function registerNotificationTask(handler: (response: NotificationResponse) => Promise<void>): void {
+  const N = getNotifications();
+  if (!N) return;
+  const TaskManager = require("expo-task-manager") as typeof import("expo-task-manager");
+  TaskManager.defineTask<NotificationTaskPayload>(NOTIFICATION_TASK, async ({ data, error }) => {
+    if (error || !data || !("actionIdentifier" in data)) return;
+    await handler(data);
+  });
+  N.registerTaskAsync(NOTIFICATION_TASK).catch(console.warn);
+}
+
+/** Taps and buttons while the app runs, plus the tap that launched it. Returns the unsubscribe. */
+export function onNotificationResponse(handler: (response: NotificationResponse) => void): () => void {
+  const N = getNotifications();
+  if (!N) return () => {};
+  // Only a plain tap launches the app; buttons never do.
+  const launch = N.getLastNotificationResponse();
+  if (launch?.actionIdentifier === N.DEFAULT_ACTION_IDENTIFIER) handler(launch);
+  const sub = N.addNotificationResponseReceivedListener(handler);
+  return () => sub.remove();
+}
+
+/**
+ * Whether this very notification (same id, same delivery) is still in the
+ * shade. A button acts only then: a response replayed later (Android queues
+ * them until the app listens) finds it dismissed and logs nothing twice.
+ */
+export async function stillShown(id: string, date: number): Promise<boolean> {
+  const N = getNotifications();
+  if (!N) return false;
+  const shown = await N.getPresentedNotificationsAsync().catch(() => []);
+  return shown.some((n) => n.request.identifier === id && Math.abs(n.date - date) < 1000);
+}
+
+/** Action buttons do not dismiss their notification by themselves. */
+export async function dismissNotification(id: string): Promise<void> {
+  await getNotifications()?.dismissNotificationAsync(id).catch(() => {});
 }
 
 /**
@@ -88,13 +165,14 @@ export async function scheduleDaily(
   hour: number,
   minute: number,
   channelId = CHANNEL_REMINDERS,
+  extra: Extra = {},
 ): Promise<boolean> {
   const N = getNotifications();
   if (!N) return false;
   await N.cancelScheduledNotificationAsync(id).catch(() => {});
   await N.scheduleNotificationAsync({
     identifier: id,
-    content: { title, body },
+    content: content(title, body, extra),
     trigger: {
       type: N.SchedulableTriggerInputTypes.DAILY,
       channelId,
@@ -114,13 +192,14 @@ export async function scheduleWeekly(
   hour: number,
   minute: number,
   channelId = CHANNEL_REMINDERS,
+  extra: Extra = {},
 ): Promise<boolean> {
   const N = getNotifications();
   if (!N) return false;
   await N.cancelScheduledNotificationAsync(id).catch(() => {});
   await N.scheduleNotificationAsync({
     identifier: id,
-    content: { title, body },
+    content: content(title, body, extra),
     trigger: {
       type: N.SchedulableTriggerInputTypes.WEEKLY,
       channelId,
@@ -141,13 +220,14 @@ export async function scheduleMonthly(
   hour: number,
   minute: number,
   channelId = CHANNEL_REMINDERS,
+  extra: Extra = {},
 ): Promise<boolean> {
   const N = getNotifications();
   if (!N) return false;
   await N.cancelScheduledNotificationAsync(id).catch(() => {});
   await N.scheduleNotificationAsync({
     identifier: id,
-    content: { title, body },
+    content: content(title, body, extra),
     trigger: { type: N.SchedulableTriggerInputTypes.MONTHLY, channelId, day, hour, minute },
   });
   return true;
@@ -163,6 +243,7 @@ export async function scheduleAt(
   body: string,
   date: Date,
   channelId = CHANNEL_REMINDERS,
+  extra: Extra = {},
 ): Promise<boolean> {
   const N = getNotifications();
   if (!N) return false;
@@ -170,7 +251,7 @@ export async function scheduleAt(
   if (date.getTime() <= Date.now()) return true;
   await N.scheduleNotificationAsync({
     identifier: id,
-    content: { title, body },
+    content: content(title, body, extra),
     trigger: { type: N.SchedulableTriggerInputTypes.DATE, channelId, date },
   });
   return true;

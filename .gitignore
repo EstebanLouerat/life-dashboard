@@ -5,6 +5,8 @@ node_modules/
 .expo/
 dist/
 android/
+# Native code of the local Expo modules is source, not a prebuild output.
+!apps/mobile/modules/*/android/
 ios/
 *.tsbuildinfo
 next-env.d.ts

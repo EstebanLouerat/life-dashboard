@@ -130,16 +130,17 @@ async function syncReminders(s: SubscriptionState) {
     await cancelScheduled(reminderIds(s.id));
     return;
   }
+  const extra = { domain: "epargne", url: `/plus/abonnements/${s.id}` } as const;
   const dates = nextRenewals(s.anchorOn, s.cycle, today(), SCHEDULED_RENEWALS);
   for (const [k, date] of dates.entries()) {
     const at = atLocalTime(date, REMINDER_HOUR);
     at.setDate(at.getDate() - s.reminderDays);
-    await scheduleAt(`sub-${s.id}-r${k}`, s.name, `Prélèvement de ${formatCents(s.priceCents)} le ${shortFrDate(date)}.`, at, CHANNEL_MONEY);
+    await scheduleAt(`sub-${s.id}-r${k}`, s.name, `Prélèvement de ${formatCents(s.priceCents)} le ${shortFrDate(date)}.`, at, CHANNEL_MONEY, extra);
   }
   if (s.trialEndsOn) {
     const at = atLocalTime(s.trialEndsOn, REMINDER_HOUR);
     at.setDate(at.getDate() - s.reminderDays);
-    await scheduleAt(`sub-${s.id}-trial`, `⏳ Essai ${s.name}`, `L'essai se termine le ${shortFrDate(s.trialEndsOn)}.`, at, CHANNEL_MONEY);
+    await scheduleAt(`sub-${s.id}-trial`, `⏳ Essai ${s.name}`, `L'essai se termine le ${shortFrDate(s.trialEndsOn)}.`, at, CHANNEL_MONEY, extra);
   } else {
     await cancelScheduled([`sub-${s.id}-trial`]);
   }
