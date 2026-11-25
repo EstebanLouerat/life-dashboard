@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Pressable, View, type LayoutChangeEvent } from "react-native";
-import Animated, { useAnimatedStyle, useSharedValue, withTiming, type SharedValue } from "react-native-reanimated";
+import Animated, { useAnimatedReaction, useAnimatedStyle, useSharedValue, withTiming, type SharedValue } from "react-native-reanimated";
 import { GestureDetector, usePanGesture } from "react-native-gesture-handler";
 import { scheduleOnRN } from "react-native-worklets";
 import { Icon, radius, space, timing, useTheme, type IconName } from "@/components/ui";
@@ -28,6 +28,8 @@ export function EditableTile({
   frames,
   dragged,
   over,
+  scrollY,
+  finger,
   onEdit,
   onDrop,
   onRemove,
@@ -43,6 +45,9 @@ export function EditableTile({
   frames: SharedValue<Record<string, Frame>>;
   dragged: SharedValue<string>;
   over: SharedValue<string>;
+  /** Page scroll offset, and the finger's height on screen while dragging (-1 otherwise) for the edge scroll. */
+  scrollY: SharedValue<number>;
+  finger: SharedValue<number>;
   onEdit: () => void;
   onDrop: (target: string) => void;
   onRemove: () => void;
@@ -57,12 +62,42 @@ export function EditableTile({
   const other: TileSize | null = info.sizes.find((s) => s !== entry.size) ?? null;
   const dx = useSharedValue(0);
   const dy = useSharedValue(0);
+  // Scroll offset when the drag started: the page may scroll under the finger (edge scroll).
+  const startScroll = useSharedValue(0);
+
+  /** Which other tile the dragged one's centre is over, in page coordinates. */
+  const hitTest = () => {
+    "worklet";
+    const me = frames.value[id];
+    if (!me) return;
+    const cx = me.x + me.w / 2 + dx.value;
+    const cy = me.y + me.h / 2 + dy.value + scrollY.value - startScroll.value;
+    let hit = "";
+    for (const key of Object.keys(frames.value)) {
+      const f = frames.value[key];
+      if (key !== id && cx >= f.x && cx <= f.x + f.w && cy >= f.y && cy <= f.y + f.h) hit = key;
+    }
+    if (hit !== over.value) {
+      over.value = hit;
+      if (hit) scheduleOnRN(haptics.tap);
+    }
+  };
+
+  // The finger can stay still while the page scrolls under it.
+  useAnimatedReaction(
+    () => scrollY.value,
+    () => {
+      if (dragged.value === id) hitTest();
+    },
+  );
 
   const move = usePanGesture({
     activateAfterLongPress: HOLD_MS,
-    onActivate: () => {
+    onActivate: (e) => {
       "worklet";
       dragged.value = id;
+      startScroll.value = scrollY.value;
+      finger.value = e.absoluteY;
       scheduleOnRN(haptics.tap);
     },
     onUpdate: (e) => {
@@ -70,24 +105,16 @@ export function EditableTile({
       if (dragged.value !== id) return;
       dx.value = e.translationX;
       dy.value = e.translationY;
-      const me = frames.value[id];
-      if (!me) return;
-      const cx = me.x + me.w / 2 + e.translationX;
-      const cy = me.y + me.h / 2 + e.translationY;
-      let hit = "";
-      for (const key of Object.keys(frames.value)) {
-        const f = frames.value[key];
-        if (key !== id && cx >= f.x && cx <= f.x + f.w && cy >= f.y && cy <= f.y + f.h) hit = key;
-      }
-      if (hit !== over.value) {
-        over.value = hit;
-        if (hit) scheduleOnRN(haptics.tap);
-      }
+      finger.value = e.absoluteY;
+      hitTest();
     },
     onFinalize: () => {
       "worklet";
       if (dragged.value !== id) return;
       const target = over.value;
+      // Keep the tile where it is on screen once the scroll delta stops applying.
+      dy.value += scrollY.value - startScroll.value;
+      finger.value = -1;
       dragged.value = "";
       over.value = "";
       if (target) {
@@ -117,7 +144,7 @@ export function EditableTile({
     return {
       zIndex: active ? 10 : 1,
       opacity: withTiming(active ? 0.92 : 1, timing.press),
-      transform: [{ translateX: dx.value }, { translateY: dy.value }, { scale: withTiming(active ? 1.03 : editing ? 0.97 : 1, timing.release) }],
+      transform: [{ translateX: dx.value }, { translateY: dy.value + (active ? scrollY.value - startScroll.value : 0) }, { scale: withTiming(active ? 1.03 : editing ? 0.97 : 1, timing.release) }],
     };
   });
   const target = useAnimatedStyle(() => ({ opacity: withTiming(over.value === id ? 1 : 0, timing.press) }));

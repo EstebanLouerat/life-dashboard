@@ -19,6 +19,7 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withTiming,
+  type AnimatedRef,
   type SharedValue,
 } from "react-native-reanimated";
 import { GestureDetector, GestureHandlerRootView, usePanGesture } from "react-native-gesture-handler";
@@ -143,6 +144,8 @@ export function Screen({
   backdrop,
   refreshing,
   onRefresh,
+  scrollRef,
+  scrollOffset,
   children,
 }: {
   title?: string;
@@ -157,6 +160,9 @@ export function Screen({
   backdrop?: ReactNode;
   refreshing?: boolean;
   onRefresh?: () => void;
+  /** For a screen that scrolls itself (Today's drag near an edge): the scroll view and its offset. */
+  scrollRef?: AnimatedRef<Animated.ScrollView>;
+  scrollOffset?: SharedValue<number>;
   children?: ReactNode;
 }) {
   const t = useTheme();
@@ -199,6 +205,7 @@ export function Screen({
     const dy = y - lastY.value;
     lastY.value = y;
     scrollY.value = y;
+    if (scrollOffset) scrollOffset.value = y;
     if (!collapsed) return;
     if (y > 56 && dy > 3 && collapsed.value === 0) collapsed.value = withTiming(1, timing.slide);
     else if ((dy < -3 || y < 24) && collapsed.value === 1) collapsed.value = withTiming(0, timing.slide);
@@ -219,6 +226,7 @@ export function Screen({
     <DomainScope domain={d}>
       <View style={{ flex: 1, backgroundColor: t.bg }}>
         <Animated.ScrollView
+          ref={scrollRef}
           onScroll={onScroll}
           scrollEventThrottle={16}
           style={{ flex: 1 }}

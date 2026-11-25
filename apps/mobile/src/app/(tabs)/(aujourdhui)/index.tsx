@@ -1,6 +1,9 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AppState, BackHandler, Platform, View } from "react-native";
-import { useSharedValue } from "react-native-reanimated";
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { AppState, BackHandler, Platform, useWindowDimensions, View } from "react-native";
+import type Animated from "react-native-reanimated";
+import { scrollTo, useAnimatedRef, useFrameCallback, useSharedValue } from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { BottomTabBarHeightContext } from "expo-router/tabs";
 import { router, useFocusEffect } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import { GroceryPlan, GroceryRequest, WorkoutSession } from "@ld/contracts";
@@ -52,6 +55,9 @@ type TodayData = {
 };
 
 const fr = new Intl.NumberFormat("fr-FR");
+/** Edge scroll while dragging a tile: height of the zone under the top bar / above the tab bar, and top speed. */
+const EDGE = 64;
+const MAX_SPEED = 14;
 
 /**
  * The day at a glance, in glass tiles tinted by domain: every daily log is
@@ -72,6 +78,31 @@ export default function TodayScreen() {
   const frames = useSharedValue<Record<string, Frame>>({});
   const dragged = useSharedValue("");
   const over = useSharedValue("");
+  // Edge scroll: holding a dragged tile near the top or bottom scrolls the page.
+  const scrollRef = useAnimatedRef<Animated.ScrollView>();
+  const scrollY = useSharedValue(0);
+  const finger = useSharedValue(-1);
+  const { height: screenHeight } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const tabBar = useContext(BottomTabBarHeightContext) ?? 0;
+  const edgeTop = insets.top + 52 + EDGE;
+  const edgeBottom = screenHeight - (tabBar || insets.bottom) - EDGE;
+  const edgeScroll = useFrameCallback(() => {
+    if (!dragged.value || finger.value < 0) return;
+    const f = finger.value;
+    // Faster the closer to the edge, up to MAX_SPEED px per frame.
+    const speed = f < edgeTop ? -Math.min(MAX_SPEED, 2 + (edgeTop - f) / 4) : f > edgeBottom ? Math.min(MAX_SPEED, 2 + (f - edgeBottom) / 4) : 0;
+    if (!speed) return;
+    // Down to the last tile only (on the web the moved tile itself would stretch the page).
+    let bottom = 0;
+    for (const key of Object.keys(frames.value)) bottom = Math.max(bottom, frames.value[key].y + frames.value[key].h);
+    const max = Math.max(scrollY.value, bottom + (tabBar || insets.bottom) + EDGE - screenHeight);
+    const next = speed < 0 ? Math.max(0, scrollY.value + speed) : Math.min(max, scrollY.value + speed);
+    if (next !== scrollY.value) scrollTo(scrollRef, 0, next, false);
+  }, false);
+  useEffect(() => {
+    edgeScroll.setActive(editing);
+  }, [editing, edgeScroll]);
   const boxes = useRef<{ rows: Record<string, number>; tiles: Record<string, { row: string; x: number; w: number; h: number }> }>({ rows: {}, tiles: {} });
 
   const load = useCallback(async () => {
@@ -403,6 +434,8 @@ export default function TodayScreen() {
         { icon: "options-outline", label: "Réglages", onPress: () => router.push("/plus/reglages") },
       ]}
       backdrop={<BlobWash blobs={blobs} height={washHeight} />}
+      scrollRef={scrollRef}
+      scrollOffset={scrollY}
       right={
         editing ? (
           <>
@@ -454,6 +487,8 @@ export default function TodayScreen() {
                     frames={frames}
                     dragged={dragged}
                     over={over}
+                    scrollY={scrollY}
+                    finger={finger}
                     onEdit={startEditing}
                     onDrop={(target) => dropTile(entry.id, target)}
                     onRemove={() => removeTile(entry.id)}
