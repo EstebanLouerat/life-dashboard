@@ -21,7 +21,8 @@
       "package": "com.esteban.lifedashboard",
       "permissions": [
         "POST_NOTIFICATIONS",
-        "SCHEDULE_EXACT_ALARM"
+        "SCHEDULE_EXACT_ALARM",
+        "android.permission.CAMERA"
       ],
       "allowBackup": false
     },
@@ -130,6 +131,17 @@
     "scheme": "lifedashboard",
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "router": {
+        "asyncRoutes": {
+          "web": true
+        }
+      },
+      "eas": {
+        "projectId": "f2de6ca9-88df-4b61-8c01-c7f890c0af7b"
+      }
+    },
+    "owner": "sbeuteu-projet-perso"
   }
 }
