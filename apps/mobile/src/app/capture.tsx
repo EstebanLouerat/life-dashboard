@@ -15,8 +15,8 @@ import { haptics } from "@/lib/haptics";
  */
 export default function CaptureScreen() {
   const db = useSQLiteContext();
-  const { from } = useLocalSearchParams<{ from?: string }>();
-  const [kind, setKind] = useState<BacklogKind>("idea");
+  const { from, kind: initialKind } = useLocalSearchParams<{ from?: string; kind?: string }>();
+  const [kind, setKind] = useState<BacklogKind>(initialKind === "bug" ? "bug" : "idea");
   const [title, setTitle] = useState("");
   const [details, setDetails] = useState("");
   const [module, setModule] = useState(moduleFromPath(from) ?? "none");

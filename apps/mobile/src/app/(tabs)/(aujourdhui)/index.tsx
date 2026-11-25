@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { AppState, View } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AppState, BackHandler, Platform, View } from "react-native";
+import { useSharedValue } from "react-native-reanimated";
 import { router, useFocusEffect } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import { GroceryPlan, GroceryRequest, WorkoutSession } from "@ld/contracts";
-import { BlobWash, Card, EmptyState, IconButton, Screen, SkeletonCard, space, Txt, useSnackbar, type Blob } from "@/components/ui";
+import { AddRow, BlobWash, Card, EmptyState, IconButton, Screen, SkeletonCard, space, Txt, useActionSheet, useSnackbar, type Blob, type IconName } from "@/components/ui";
+import { EditableTile, TileRowView, type Frame } from "@/components/today/EditableTile";
 import {
   DinnerTile,
   HairTile,
@@ -18,13 +20,13 @@ import {
 } from "@/components/today/tiles";
 import { useWorkoutRunner } from "@/components/WorkoutRunner";
 import { dayProgress } from "@/lib/adherence";
-import { parseLayout, TILES, tileRows, type LayoutEntry } from "@/lib/dashboard";
+import { availableTiles, moveTile, parseLayout, serializeLayout, TILES, tileRows, type LayoutEntry, type TileId, type TileSize } from "@/lib/dashboard";
 import { addDays, today } from "@/lib/dates";
 import { haptics } from "@/lib/haptics";
 import { refreshHairChecks, type HairState } from "@/lib/hairChecks";
 import { loadNights, setNight } from "@/lib/nights";
 import { nextHydrationReminder, parsePrefs } from "@/lib/reminders";
-import { intSetting, readSettings } from "@/lib/settings";
+import { intSetting, readSettings, writeSetting } from "@/lib/settings";
 import { SLEEP_BUCKETS, type Bucket, type Night } from "@/lib/sleep";
 import type { DoseStatus } from "@/lib/stock";
 import { refreshSubscriptions, subscriptionAlerts, type MoneyAlert } from "@/lib/subscriptions";
@@ -64,6 +66,13 @@ export default function TodayScreen() {
   const [layout, setLayout] = useState<LayoutEntry[]>([]);
   const [rowsLayout, setRowsLayout] = useState<Record<number, { y: number; h: number }>>({});
   const [lastWaterAt, setLastWaterAt] = useState(0);
+  const [editing, setEditing] = useState(false);
+  const actions = useActionSheet();
+  // Edit mode: where each tile sits, which one is dragged and which one it is over.
+  const frames = useSharedValue<Record<string, Frame>>({});
+  const dragged = useSharedValue("");
+  const over = useSharedValue("");
+  const boxes = useRef<{ rows: Record<string, number>; tiles: Record<string, { row: string; x: number; w: number; h: number }> }>({ rows: {}, tiles: {} });
 
   const load = useCallback(async () => {
     const day = today();
@@ -259,20 +268,91 @@ export default function TodayScreen() {
 
   // ── layout ──
 
-  const visible = useMemo(() => {
-    if (!data) return [];
-    const has: Record<LayoutEntry["id"], boolean> = {
-      hydration: true,
-      treatments: data.treatments.length > 0,
-      sleep: true,
-      workout: !!data.session,
-      dinner: !!data.plan,
-      savings: data.wishlist.items.some((i) => i.status === "wanted"),
-      hair: true,
-      money: data.moneyAlerts.length > 0,
-    };
-    return layout.filter((e) => has[e.id]);
-  }, [data, layout]);
+  const has = useMemo<Record<TileId, boolean> | null>(
+    () =>
+      data && {
+        hydration: true,
+        treatments: data.treatments.length > 0,
+        sleep: true,
+        workout: !!data.session,
+        dinner: !!data.plan,
+        savings: data.wishlist.items.some((i) => i.status === "wanted"),
+        hair: true,
+        money: data.moneyAlerts.length > 0,
+      },
+    [data],
+  );
+  const visible = useMemo(() => (has ? layout.filter((e) => has[e.id]) : []), [has, layout]);
+
+  // ── edit mode (long press on a tile, the pencil or the icon menu) ──
+
+  const startEditing = () => {
+    if (editing) return;
+    haptics.impact();
+    setEditing(true);
+  };
+
+  // Leaving the tab or pressing back ends edit mode.
+  useFocusEffect(useCallback(() => () => setEditing(false), []));
+  useEffect(() => {
+    if (!editing || Platform.OS === "web") return;
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+      setEditing(false);
+      return true;
+    });
+    return () => sub.remove();
+  }, [editing]);
+
+  const saveLayout = (next: LayoutEntry[]) => {
+    setLayout(next);
+    writeSetting(db, "today_tiles", serializeLayout(next)).catch(console.warn);
+  };
+
+  /** Puts tile `id` in the place of `target` (the others shift). */
+  const dropTile = (id: TileId, target: string) => {
+    const from = layout.findIndex((e) => e.id === id);
+    const to = layout.findIndex((e) => e.id === target);
+    if (from < 0 || to < 0) return;
+    haptics.success();
+    saveLayout(moveTile(layout, from, to));
+  };
+
+  const removeTile = (id: TileId) => {
+    const before = layout;
+    haptics.impact();
+    saveLayout(layout.filter((e) => e.id !== id));
+    snackbar.show({ message: `${TILES[id].title} retiré du tableau`, undo: () => saveLayout(before) });
+  };
+
+  const resizeTile = (id: TileId, size: TileSize) => {
+    haptics.tap();
+    saveLayout(layout.map((e) => (e.id === id ? { ...e, size } : e)));
+  };
+
+  const addTile = () =>
+    actions.open(
+      "Ajouter un bloc",
+      availableTiles(layout).map((id) => ({
+        icon: TILES[id].icon as IconName,
+        label: TILES[id].title,
+        hint: has?.[id] === false ? "Apparaîtra dès qu'il aura du contenu" : TILES[id].describe[TILES[id].sizes[0]],
+        onPress: () => {
+          haptics.success();
+          saveLayout([...layout, { id, size: TILES[id].sizes[0] }]);
+        },
+      })),
+    );
+
+  /** Tile boxes in page coordinates, from the rows' and tiles' layouts (only the tiles shown). */
+  const syncFrames = () => {
+    const { rows, tiles } = boxes.current;
+    const shown = new Set(visible.map((e) => e.id));
+    frames.value = Object.fromEntries(
+      Object.entries(tiles)
+        .filter(([id, b]) => shown.has(id as TileId) && rows[b.row] !== undefined)
+        .map(([id, b]) => [id, { x: b.x, y: rows[b.row], w: b.w, h: b.h }]),
+    );
+  };
   const rows = tileRows(visible);
   const empty = !!data && !visible.some((e) => ["treatments", "workout", "dinner", "savings"].includes(e.id));
 
@@ -314,16 +394,31 @@ export default function TodayScreen() {
       title="Aujourd'hui"
       subtitle={date.charAt(0).toUpperCase() + date.slice(1)}
       domain="encre"
+      icon="calendar-outline"
+      menu={[
+        ...(data ? [{ icon: "water-outline" as const, label: `Ajouter un verre`, hint: `${data.glass} ml`, onPress: () => addWater(1) }] : []),
+        { icon: "create-outline", label: "Modifier le tableau", hint: "Ou appui long sur un bloc", onPress: startEditing },
+        { icon: "bulb-outline", label: "Noter une idée", onPress: () => router.push({ pathname: "/capture", params: { from: "/" } }) },
+        { icon: "bug-outline", label: "Signaler un bug", onPress: () => router.push({ pathname: "/capture", params: { from: "/", kind: "bug" } }) },
+        { icon: "options-outline", label: "Réglages", onPress: () => router.push("/plus/reglages") },
+      ]}
       backdrop={<BlobWash blobs={blobs} height={washHeight} />}
       right={
-        <>
-          <IconButton icon="bulb-outline" label="Noter une idée ou un bug" onPress={() => router.push({ pathname: "/capture", params: { from: "/" } })} />
-          <IconButton icon="pencil-outline" label="Personnaliser le tableau" onPress={() => router.push("/personnaliser")} />
-        </>
+        editing ? (
+          <>
+            <IconButton icon="list-outline" label="Liste détaillée des blocs" onPress={() => router.push("/personnaliser")} />
+            <IconButton icon="checkmark" label="Terminer la modification" onPress={() => setEditing(false)} />
+          </>
+        ) : (
+          <>
+            <IconButton icon="bulb-outline" label="Noter une idée ou un bug" onPress={() => router.push({ pathname: "/capture", params: { from: "/" } })} />
+            <IconButton icon="pencil-outline" label="Modifier le tableau" onPress={startEditing} />
+          </>
+        )
       }
     >
-      <Txt variant="callout" tone="muted" numberOfLines={1} style={{ paddingHorizontal: space.xs, marginTop: -space.xs }}>
-        {summary}
+      <Txt variant="callout" tone={editing ? "accent" : "muted"} numberOfLines={2} style={{ paddingHorizontal: space.xs, marginTop: -space.xs }}>
+        {editing ? "Maintiens un bloc puis glisse-le. Coins : retirer, agrandir ou réduire." : summary}
       </Txt>
 
       {!data ? (
@@ -333,24 +428,57 @@ export default function TodayScreen() {
           <SkeletonCard />
         </>
       ) : (
-        rows.map((row, i) => (
-          <View
-            key={row.map((e) => e.id).join("-")}
-            onLayout={(e) => {
-              const { y, height } = e.nativeEvent.layout;
-              setRowsLayout((prev) => (prev[i]?.y === y && prev[i]?.h === height ? prev : { ...prev, [i]: { y, h: height } }));
-            }}
-            style={{ flexDirection: "row", gap: space.md, alignItems: "stretch" }}
-          >
-            {row.map((entry) => (
-              <View key={entry.id} style={{ flex: 1 }}>
-                {renderTile(entry, i)}
-              </View>
-            ))}
-            {row.length === 1 && row[0].size === "half" ? <View style={{ flex: 1 }} /> : null}
-          </View>
-        ))
+        rows.map((row, i) => {
+          const key = row.map((e) => e.id).join("-");
+          return (
+            <TileRowView
+              key={key}
+              ids={row.map((e) => e.id)}
+              dragged={dragged}
+              onLayout={(e) => {
+                const { y, height } = e.nativeEvent.layout;
+                setRowsLayout((prev) => (prev[i]?.y === y && prev[i]?.h === height ? prev : { ...prev, [i]: { y, h: height } }));
+                boxes.current.rows[key] = y;
+                syncFrames();
+              }}
+            >
+              {row.map((entry) => {
+                const at = visible.indexOf(entry);
+                return (
+                  <EditableTile
+                    key={entry.id}
+                    entry={entry}
+                    editing={editing}
+                    first={at === 0}
+                    last={at === visible.length - 1}
+                    frames={frames}
+                    dragged={dragged}
+                    over={over}
+                    onEdit={startEditing}
+                    onDrop={(target) => dropTile(entry.id, target)}
+                    onRemove={() => removeTile(entry.id)}
+                    onResize={(size) => resizeTile(entry.id, size)}
+                    onMoveBy={(step) => {
+                      const neighbour = visible[at + step];
+                      if (neighbour) dropTile(entry.id, neighbour.id);
+                    }}
+                    onLayout={(e) => {
+                      const { x, width, height } = e.nativeEvent.layout;
+                      boxes.current.tiles[entry.id] = { row: key, x, w: width, h: height };
+                      syncFrames();
+                    }}
+                  >
+                    {renderTile(entry, i)}
+                  </EditableTile>
+                );
+              })}
+              {row.length === 1 && row[0].size === "half" ? <View style={{ flex: 1 }} /> : null}
+            </TileRowView>
+          );
+        })
       )}
+
+      {editing && availableTiles(layout).length ? <AddRow label="Ajouter un bloc" hint="Les blocs retirés et ceux jamais ajoutés" onPress={addTile} /> : null}
 
       {empty ? (
         <Card>
@@ -361,6 +489,7 @@ export default function TodayScreen() {
           />
         </Card>
       ) : null}
+      {actions.sheet}
     </Screen>
   );
 

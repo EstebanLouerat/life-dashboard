@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
 import { Linking, View } from "react-native";
+import * as Clipboard from "expo-clipboard";
 import Animated from "react-native-reanimated";
 import { router, useFocusEffect } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
@@ -18,8 +19,12 @@ import {
   Screen,
   SectionTitle,
   space,
+  Swipeable,
   Txt,
+  useActionSheet,
+  useSnackbar,
   useTheme,
+  type IconName,
 } from "@/components/ui";
 import { changeStatus, dropPending, loadBacklog, moduleLabel, syncBacklog, type BacklogState, type PendingChange } from "@/lib/backlog";
 import { haptics } from "@/lib/haptics";
@@ -70,6 +75,27 @@ export default function BacklogScreen() {
     await changeStatus(db, item, status);
     setState(await loadBacklog(db));
   };
+
+  const snackbar = useSnackbar();
+  const actions = useActionSheet();
+
+  const menu = (item: BacklogItem) =>
+    actions.open(`#${item.id} ${item.title}`, [
+      ...SECTIONS.filter((s) => s.status !== item.status).map((s) => ({
+        icon: (s.status === "done" ? "checkmark-done-outline" : s.status === "doing" ? "play-outline" : "ellipse-outline") as IconName,
+        label: `Passer en « ${s.title} »`,
+        onPress: () => move(item, s.status),
+      })),
+      { icon: "logo-github", label: "Ouvrir sur GitHub", onPress: () => Linking.openURL(item.url) },
+      {
+        icon: "copy-outline",
+        label: "Copier le lien",
+        onPress: async () => {
+          await Clipboard.setStringAsync(item.url);
+          snackbar.show({ message: "Lien copié" });
+        },
+      },
+    ]);
 
   const drop = async (change: PendingChange) => {
     await dropPending(db, change.outboxId);
@@ -152,25 +178,46 @@ export default function BacklogScreen() {
             {collapsed ? null : (
               <Card index={1}>
                 {items.map((item) => (
-                  <BacklogRow key={item.id} item={item} onMove={move} />
+                  <Swipeable
+                    key={item.id}
+                    style={{ marginHorizontal: -space.sm }}
+                    left={{
+                      icon: item.status === "done" ? "refresh-outline" : item.status === "doing" ? "checkmark-done-outline" : "play-outline",
+                      label: NEXT[item.status].label,
+                      onAction: () => move(item, NEXT[item.status].status),
+                    }}
+                  >
+                    <BacklogRow item={item} onMove={move} onLongPress={() => menu(item)} />
+                  </Swipeable>
                 ))}
               </Card>
             )}
           </View>
         );
       })}
+      {actions.sheet}
     </Screen>
   );
 }
 
-function BacklogRow({ item, onMove }: { item: BacklogItem; onMove: (item: BacklogItem, status: BacklogStatus) => void }) {
+function BacklogRow({
+  item,
+  onMove,
+  onLongPress,
+}: {
+  item: BacklogItem;
+  onMove: (item: BacklogItem, status: BacklogStatus) => void;
+  onLongPress: () => void;
+}) {
   const next = NEXT[item.status];
   return (
-    <Animated.View layout={layoutTransition} style={{ flexDirection: "row", alignItems: "center", gap: space.sm }}>
+    <Animated.View layout={layoutTransition} style={{ flexDirection: "row", alignItems: "center", gap: space.sm, paddingHorizontal: space.sm }}>
       <PressableScale
         accessibilityRole="link"
         accessibilityLabel={`${item.title}, ouvrir sur GitHub`}
+        accessibilityHint="Appui long pour plus d'actions"
         onPress={() => Linking.openURL(item.url)}
+        onLongPress={onLongPress}
         style={{ flex: 1, gap: 6, minHeight: 56, justifyContent: "center", paddingVertical: space.xs }}
       >
         <Txt variant="bodyStrong" numberOfLines={2}>

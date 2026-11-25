@@ -14,7 +14,8 @@ const VISIBLE_MS = 6000;
 export type Undoable = {
   /** What just happened: "1 verre ajouté · 1 500 ml". */
   message: string;
-  undo: () => unknown;
+  /** Without it the snackbar only confirms (a copy, a share). */
+  undo?: () => unknown;
   /** Replays the action after an undo; without it the snackbar only says "Annulé". */
   redo?: () => unknown;
 };
@@ -54,6 +55,7 @@ export function SnackbarProvider({ children }: { children: ReactNode }) {
     haptics.impact();
     const { action, kind } = snack;
     if (kind === "done") {
+      if (!action.undo) return;
       await action.undo();
       if (action.redo) present("undone", "Annulé", action);
       else setSnack(null);
@@ -101,7 +103,7 @@ export function SnackbarHost() {
 
   if (!shown) return null;
   const label = shown.kind === "done" ? "Annuler" : "Rétablir";
-  const hasAction = shown.kind === "done" || !!shown.action.redo;
+  const hasAction = shown.kind === "done" ? !!shown.action.undo : !!shown.action.redo;
   return (
     <Animated.View
       accessibilityLiveRegion="polite"

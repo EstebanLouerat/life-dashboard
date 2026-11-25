@@ -1,5 +1,5 @@
 import { createContext, createElement, useContext, type ReactNode } from "react";
-import { useColorScheme, type TextStyle } from "react-native";
+import { Platform, useColorScheme, type TextStyle } from "react-native";
 
 /**
  * Design tokens ("Carnet calme × Liquid Glass"). Warm paper and deep ink for
@@ -245,17 +245,26 @@ export const space = { xs: 4, sm: 8, md: 12, lg: 16, xl: 20, xxl: 24, xxxl: 32 }
 export const radius = { sm: 8, md: 12, lg: 24, tile: 26, xl: 32, pill: 999 } as const;
 
 /**
- * Roboto, the Android system font, in three weights (300, 400, 500): no font
- * file to load. Tracking tightens as type grows and opens below 14 px.
- * Figures that change in place use tabular digits so they don't jitter.
+ * Titles (screens, cards, tiles, sheets): Roboto Condensed bold, the Android
+ * system condensed family; the web preview approximates it.
+ */
+const TITLE_FONT = Platform.select({ android: "sans-serif-condensed", web: '"Roboto Condensed", "Arial Narrow", sans-serif' });
+
+/**
+ * Roboto, the Android system font, in three weights (300, 400, 500), and its
+ * condensed bold for titles: no font file to load. Tracking tightens as type
+ * grows and opens below 14 px. Figures that change in place use tabular
+ * digits so they don't jitter.
  */
 export const typography = {
-  display: { fontSize: 32, lineHeight: 38, fontWeight: "500", letterSpacing: -0.6 },
+  display: { fontSize: 32, lineHeight: 38, fontFamily: TITLE_FONT, fontWeight: "700", letterSpacing: -0.4 },
   title: { fontSize: 24, lineHeight: 30, fontWeight: "500", letterSpacing: -0.3, fontVariant: ["tabular-nums"] },
   number: { fontSize: 36, lineHeight: 42, fontWeight: "500", letterSpacing: -0.6, fontVariant: ["tabular-nums"] },
   timer: { fontSize: 80, lineHeight: 84, fontWeight: "300", letterSpacing: -2, fontVariant: ["tabular-nums"] },
-  headline: { fontSize: 18, lineHeight: 24, fontWeight: "500", letterSpacing: -0.1 },
-  nav: { fontSize: 16, lineHeight: 22, fontWeight: "500" },
+  headline: { fontSize: 19, lineHeight: 24, fontFamily: TITLE_FONT, fontWeight: "700", letterSpacing: -0.1 },
+  /** Title of a dashboard tile. */
+  heading: { fontSize: 16, lineHeight: 20, fontFamily: TITLE_FONT, fontWeight: "700" },
+  nav: { fontSize: 17, lineHeight: 22, fontFamily: TITLE_FONT, fontWeight: "700" },
   body: { fontSize: 16, lineHeight: 24, fontWeight: "400" },
   bodyStrong: { fontSize: 16, lineHeight: 22, fontWeight: "500" },
   callout: { fontSize: 14, lineHeight: 20, fontWeight: "400", letterSpacing: 0.1 },

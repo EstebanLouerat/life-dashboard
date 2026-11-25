@@ -1,9 +1,10 @@
-import { createContext, useContext, useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useId, useRef, useState, type ReactNode } from "react";
 import {
   KeyboardAvoidingView,
   Modal,
   Pressable,
   RefreshControl,
+  StyleSheet,
   View,
   type LayoutChangeEvent,
   type PressableProps,
@@ -30,12 +31,17 @@ import Svg, { Defs, RadialGradient, Rect, Stop } from "react-native-svg";
 import { GlassSpecular, IconButton } from "./controls";
 import { EASE_IN, EASE_OUT, entering, layoutTransition, timing, usePressScale } from "./motion";
 import { Icon, IconTile, Txt, type IconName } from "./primitives";
+import { haptics } from "@/lib/haptics";
 import { DomainScope, elevation, glassShadow, radius, space, useAccent, useDomain, useTheme, withAlpha, type Domain, type Tint } from "./theme";
 
 /** Sticky row under the status bar: back button, compact title, actions. */
 const NAV_HEIGHT = 52;
 /** Scroll distance over which the bar and the compact title fade in. */
 const FADE = 16;
+/** The module icon left of a screen's large title. */
+const TITLE_ICON = 44;
+/** Through a stylesheet: react-native-web ignores `pointerEvents` in inline styles, and the bar overlays the title row. */
+const pe = StyleSheet.create({ boxNone: { pointerEvents: "box-none" }, none: { pointerEvents: "none" } });
 
 /**
  * Shared with the floating tab bar: 1 while the user scrolls down a screen
@@ -128,6 +134,8 @@ export function BlobWash({ blobs, height }: { blobs: Blob[]; height: number }) {
 export function Screen({
   title,
   subtitle,
+  icon,
+  menu,
   back,
   left,
   right,
@@ -139,6 +147,9 @@ export function Screen({
 }: {
   title?: string;
   subtitle?: string;
+  /** Large module icon left of the title; with `menu`, a tap opens these shortcuts. */
+  icon?: IconName;
+  menu?: MenuAction[];
   back?: boolean;
   left?: ReactNode;
   right?: ReactNode;
@@ -165,8 +176,17 @@ export function Screen({
   const measure = (key: "blockY" | "textBottom", value: number) => {
     titleLayout.current[key] = value;
     const { blockY, textBottom } = titleLayout.current;
-    if (blockY >= 0 && textBottom >= 0) titleHidden.value = blockY + textBottom - barHeight;
+    // The large title sits on the bar's line: the compact one takes over once it is mostly scrolled away.
+    if (blockY >= 0 && textBottom >= 0) titleHidden.value = blockY - insets.top + textBottom * 0.6;
   };
+  // Width of the bar's buttons on each side, so the large title lines up between them.
+  const [sides, setSides] = useState({ left: 0, right: 0 });
+  const side = (key: "left" | "right") => (e: LayoutChangeEvent) => {
+    const w = Math.round(e.nativeEvent.layout.width);
+    setSides((s) => (s[key] === w ? s : { ...s, [key]: w }));
+  };
+  const titleLeft = sides.left ? sides.left + space.xs : space.xs;
+  const shortcuts = useActionSheet();
 
   const collapsed = chrome?.collapsed;
   useEffect(() => {
@@ -183,14 +203,17 @@ export function Screen({
     if (y > 56 && dy > 3 && collapsed.value === 0) collapsed.value = withTiming(1, timing.slide);
     else if ((dy < -3 || y < 24) && collapsed.value === 1) collapsed.value = withTiming(0, timing.slide);
   });
-  const material = useAnimatedStyle(() => ({
-    opacity: interpolate(scrollY.value, [0, FADE], [0, 1], Extrapolation.CLAMP),
-  }));
+  const material = useAnimatedStyle(() => {
+    const start = titleHidden.value > 1e5 ? 0 : Math.max(0, titleHidden.value - 12);
+    return { opacity: interpolate(scrollY.value, [start, start + FADE], [0, 1], Extrapolation.CLAMP) };
+  });
   const compact = useAnimatedStyle(() => {
     const start = Math.max(0, titleHidden.value - 12);
     const p = interpolate(scrollY.value, [start, start + FADE], [0, 1], Extrapolation.CLAMP);
     return { opacity: p, transform: [{ translateY: (1 - p) * 6 }] };
   });
+
+  const compactInset = space.sm + Math.max(sides.left, sides.right, 40);
 
   return (
     <DomainScope domain={d}>
@@ -200,7 +223,7 @@ export function Screen({
           scrollEventThrottle={16}
           style={{ flex: 1 }}
           contentContainerStyle={{
-            paddingTop: barHeight + space.sm,
+            paddingTop: title ? insets.top : barHeight + space.sm,
             paddingHorizontal: space.lg,
             paddingBottom: (tabBarHeight || insets.bottom) + space.xxl,
             gap: space.md,
@@ -223,17 +246,32 @@ export function Screen({
             <Animated.View
               entering={FadeIn.duration(300)}
               onLayout={(e) => measure("blockY", e.nativeEvent.layout.y)}
-              style={{ gap: 2, paddingHorizontal: space.xs, paddingBottom: space.xs }}
+              style={{ paddingBottom: space.xs }}
             >
-              <Txt
-                variant="display"
-                accessibilityRole="header"
-                onLayout={(e) => measure("textBottom", e.nativeEvent.layout.y + e.nativeEvent.layout.height)}
+              <View
+                onLayout={(e) => measure("textBottom", e.nativeEvent.layout.height)}
+                style={{ flexDirection: "row", alignItems: "center", gap: space.md, minHeight: NAV_HEIGHT, paddingLeft: titleLeft, paddingRight: sides.right ? sides.right + space.xs : space.xs }}
               >
-                {title}
-              </Txt>
+                {icon ? (
+                  menu?.length ? (
+                    <PressableScale
+                      accessibilityRole="button"
+                      accessibilityLabel={`Raccourcis : ${title}`}
+                      onPress={() => shortcuts.open(title, menu)}
+                      hitSlop={4}
+                    >
+                      <IconTile icon={icon} color={d} size={TITLE_ICON} />
+                    </PressableScale>
+                  ) : (
+                    <IconTile icon={icon} color={d} size={TITLE_ICON} />
+                  )
+                ) : null}
+                <Txt variant="display" accessibilityRole="header" style={{ flex: 1 }}>
+                  {title}
+                </Txt>
+              </View>
               {subtitle ? (
-                <Txt variant="callout" tone="muted">
+                <Txt variant="callout" tone="muted" style={{ paddingLeft: titleLeft + (icon ? TITLE_ICON + space.md : 0), paddingRight: space.xs }}>
                   {subtitle}
                 </Txt>
               ) : null}
@@ -242,8 +280,8 @@ export function Screen({
           {children}
         </Animated.ScrollView>
 
-        <View style={{ position: "absolute", top: 0, left: 0, right: 0, pointerEvents: "box-none" }}>
-          <Animated.View style={[{ position: "absolute", top: 0, left: 0, right: 0, pointerEvents: "none" }, material]}>
+        <View style={[{ position: "absolute", top: 0, left: 0, right: 0 }, pe.boxNone]}>
+          <Animated.View style={[{ position: "absolute", top: 0, left: 0, right: 0 }, pe.none, material]}>
             <LinearGradient
               colors={[t.bg, withAlpha(t.bg, 0.92), withAlpha(t.bg, 0)]}
               locations={[0, 0.6, 1]}
@@ -251,21 +289,23 @@ export function Screen({
             />
           </Animated.View>
           <View
-            style={{
-              marginTop: insets.top,
-              height: NAV_HEIGHT,
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: space.sm,
-              paddingHorizontal: space.md,
-              pointerEvents: "box-none",
-            }}
+            style={[
+              {
+                marginTop: insets.top,
+                height: NAV_HEIGHT,
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: space.sm,
+                paddingHorizontal: space.md,
+              },
+              pe.boxNone,
+            ]}
           >
             <Animated.View
               accessibilityElementsHidden
               importantForAccessibility="no-hide-descendants"
-              style={[{ position: "absolute", left: 64, right: 64, alignItems: "center", pointerEvents: "none" }, compact]}
+              style={[{ position: "absolute", left: compactInset, right: compactInset, alignItems: "center" }, pe.none, compact]}
             >
               {title ? (
                 <Txt variant="nav" numberOfLines={1}>
@@ -273,13 +313,16 @@ export function Screen({
                 </Txt>
               ) : null}
             </Animated.View>
-            <View style={{ flexDirection: "row", gap: space.sm, pointerEvents: "box-none" }}>
+            <View onLayout={side("left")} style={[{ flexDirection: "row", gap: space.sm }, pe.boxNone]}>
               {back ? <IconButton icon="chevron-back" label="Retour" onPress={() => router.back()} /> : null}
               {left}
             </View>
-            <View style={{ flexDirection: "row", gap: space.sm, pointerEvents: "box-none" }}>{right}</View>
+            <View onLayout={side("right")} style={[{ flexDirection: "row", gap: space.sm }, pe.boxNone]}>
+              {right}
+            </View>
           </View>
         </View>
+        {shortcuts.sheet}
       </View>
     </DomainScope>
   );
@@ -382,7 +425,7 @@ export function Tile({
         <GlassSpecular radius={radius.tile} />
         <View style={{ flexDirection: "row", alignItems: "center", gap: space.sm, minHeight: 28 }}>
           <IconTile icon={icon} color={domain} />
-          <Txt variant="label" numberOfLines={1} accessibilityRole="header" style={{ flex: 1 }}>
+          <Txt variant="heading" numberOfLines={1} accessibilityRole="header" style={{ flex: 1 }}>
             {title}
           </Txt>
           {note ? (
@@ -439,6 +482,8 @@ export function ListRow({
   onPress,
   chevron,
   accessibilityLabel,
+  danger,
+  onLongPress,
   children,
 }: {
   icon?: IconName;
@@ -450,15 +495,19 @@ export function ListRow({
   onPress?: () => void;
   chevron?: boolean;
   accessibilityLabel?: string;
+  /** Destructive action (red), in action sheets. */
+  danger?: boolean;
+  /** Advanced actions (an ActionSheet); a plain row without onPress becomes pressable for it. */
+  onLongPress?: () => void;
   children?: ReactNode;
 }) {
   const t = useTheme();
   const a = useAccent(iconColor);
   const content = (
     <>
-      {icon ? <Icon name={icon} size={24} color={iconColor ? a.accentText : t.text} /> : null}
+      {icon ? <Icon name={icon} size={24} color={danger ? t.danger : iconColor ? a.accentText : t.text} /> : null}
       <View style={{ flex: 1 }}>
-        <Txt>{title}</Txt>
+        <Txt tone={danger ? "danger" : undefined}>{title}</Txt>
         {subtitle ? (
           <Txt variant="callout" tone={subtitleTone}>
             {subtitle}
@@ -486,12 +535,14 @@ export function ListRow({
     marginHorizontal: -space.sm,
     borderRadius: radius.md,
   };
-  if (!onPress) return <View style={rowStyle}>{content}</View>;
+  if (!onPress && !onLongPress) return <View style={rowStyle}>{content}</View>;
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? (subtitle ? `${title}, ${subtitle}` : title)}
+      accessibilityHint={onLongPress ? "Appui long pour plus d'actions" : undefined}
       onPress={onPress}
+      onLongPress={onLongPress}
       style={({ pressed }) => [rowStyle, pressed ? { backgroundColor: t.surfaceAlt } : null]}
     >
       {content}
@@ -609,6 +660,57 @@ export function Sheet({
       </GestureHandlerRootView>
     </Modal>
   );
+}
+
+export type MenuAction = { icon: IconName; label: string; hint?: string; danger?: boolean; onPress: () => void };
+
+/** Shortcuts in a sheet: a module's icon, a long press on a row. The sheet closes, then the action runs. */
+export function ActionSheet({
+  visible,
+  onClose,
+  title,
+  subtitle,
+  actions,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  title: string;
+  subtitle?: string;
+  actions: MenuAction[];
+}) {
+  return (
+    <Sheet visible={visible} onClose={onClose} title={title} subtitle={subtitle}>
+      <View>
+        {actions.map((action) => (
+          <ListRow
+            key={action.label}
+            icon={action.icon}
+            title={action.label}
+            subtitle={action.hint}
+            danger={action.danger}
+            chevron={false}
+            onPress={() => {
+              onClose();
+              action.onPress();
+            }}
+          />
+        ))}
+      </View>
+    </Sheet>
+  );
+}
+
+/** `open(title, actions)` shows an ActionSheet; render `sheet` once in the screen. */
+export function useActionSheet() {
+  const [menu, setMenu] = useState<{ title: string; subtitle?: string; actions: MenuAction[] } | null>(null);
+  const [visible, setVisible] = useState(false);
+  const open = useCallback((title: string, actions: MenuAction[], subtitle?: string) => {
+    haptics.tap();
+    setMenu({ title, subtitle, actions });
+    setVisible(true);
+  }, []);
+  const sheet = menu ? <ActionSheet visible={visible} onClose={() => setVisible(false)} {...menu} /> : null;
+  return { open, sheet };
 }
 
 /** Dashed "add" block at the end of a list. */

@@ -104,6 +104,13 @@ export default function SportScreen() {
       title="Sport"
       subtitle={date.charAt(0).toUpperCase() + date.slice(1)}
       domain="sport"
+      icon="pulse-outline"
+      menu={[
+        ...(runner.run ? [{ icon: "play-outline" as const, label: "Reprendre la séance", onPress: () => router.push("/seance") }] : []),
+        { icon: "sparkles-outline", label: "Générer une séance", hint: "Claude, d'après tes derniers ressentis", onPress: () => setSheet(true) },
+        { icon: "download-outline", label: "Importer une séance", onPress: () => router.push({ pathname: "/plus/importer", params: { type: "seance" } }) },
+        { icon: "time-outline", label: "Historique", onPress: () => router.push("/sport/historique") },
+      ]}
       right={<IconButton icon="sparkles-outline" label="Générer une nouvelle séance" onPress={() => setSheet(true)} />}
     >
       {error ? (

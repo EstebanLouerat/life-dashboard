@@ -10,3 +10,4 @@ export * from "./form";
 export * from "./layout";
 export * from "./charts";
 export * from "./snackbar";
+export * from "./swipe";

@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { View } from "react-native";
+import { Alert, View } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import {
@@ -22,9 +22,12 @@ import {
   space,
   Stat,
   StatGrid,
+  Swipeable,
   Txt,
+  useActionSheet,
   useSnackbar,
   useTheme,
+  type MenuAction,
 } from "@/components/ui";
 import { atLocalTime, formatFrDate, today } from "@/lib/dates";
 import { haptics } from "@/lib/haptics";
@@ -32,13 +35,17 @@ import { centsToInput, formatCents, parseEuros } from "@/lib/money";
 import { fundingOrder, monthlySaved, monthOf } from "@/lib/savings";
 import {
   coolingLeft,
+  deleteWish,
+  endCooling,
   PRIORITY_LABEL,
   refreshWishlist,
+  setWishStatus,
   saveBalance,
   saveWishlistSettings,
   tracksSavings,
   type WishItem,
   type WishlistState,
+  type WishStatus,
 } from "@/lib/wishlist";
 
 const monthName = (month: string, style: "long" | "short" = "long") =>
@@ -84,6 +91,65 @@ export default function WishlistScreen() {
   );
 
   const open = (id: number | "new") => router.push({ pathname: "/plus/wishlist/[id]", params: { id: String(id) } });
+  const actions = useActionSheet();
+
+  /** Moves a wish (bought at its price, dropped, back to wanted), with undo. */
+  const setStatus = async (item: WishItem, status: WishStatus, message: string) => {
+    haptics.success();
+    await setWishStatus(db, item.id, status);
+    await load();
+    snackbar.show({
+      message,
+      undo: async () => {
+        await setWishStatus(db, item.id, item.status, item.paidCents ?? undefined);
+        await load();
+      },
+    });
+  };
+
+  const menu = (item: WishItem) => {
+    const list: MenuAction[] =
+      item.status === "wanted"
+        ? [
+            { icon: "bag-check-outline", label: "Acheté", hint: formatCents(item.priceCents, true), onPress: () => setStatus(item, "bought", `${item.name} : acheté`) },
+            { icon: "close-circle-outline", label: "Abandonner", hint: "Compte comme économisé", onPress: () => setStatus(item, "dropped", `${item.name} : abandonné`) },
+            ...(coolingLeft(item) > 0
+              ? [
+                  {
+                    icon: "hourglass-outline" as const,
+                    label: "Finir la réflexion",
+                    onPress: async () => {
+                      await endCooling(db, item.id);
+                      load();
+                    },
+                  },
+                ]
+              : []),
+          ]
+        : [{ icon: "arrow-undo-outline", label: "Remettre en envie", onPress: () => setStatus(item, "wanted", `${item.name} : remis en envie`) }];
+    list.push(
+      { icon: "create-outline", label: "Modifier", onPress: () => open(item.id) },
+      {
+        icon: "trash-outline",
+        label: "Supprimer",
+        danger: true,
+        onPress: () =>
+          Alert.alert(`Supprimer « ${item.name} » ?`, "L'envie disparaît du bilan.", [
+            { text: "Annuler", style: "cancel" },
+            {
+              text: "Supprimer",
+              style: "destructive",
+              onPress: async () => {
+                await deleteWish(db, item.id);
+                load();
+              },
+            },
+          ]),
+      },
+    );
+    actions.open(item.name, list);
+  };
+
   const header = <IconButton icon="add" label="Ajouter une envie" onPress={() => open("new")} />;
 
   if (!state) {
@@ -225,7 +291,14 @@ export default function WishlistScreen() {
               <SectionTitle right={`${items.length} envie${items.length > 1 ? "s" : ""}`}>{c}</SectionTitle>
               <Card index={i + 1} style={{ gap: 0 }}>
                 {items.map((item) => (
-                  <WishRow key={item.id} item={item} onPress={() => open(item.id)} />
+                  <Swipeable
+                    key={item.id}
+                    style={{ marginHorizontal: -space.sm }}
+                    left={{ icon: "bag-check-outline", label: "Acheté", onAction: () => setStatus(item, "bought", `${item.name} : acheté`) }}
+                    right={{ icon: "close-circle-outline", label: "Abandonner", onAction: () => setStatus(item, "dropped", `${item.name} : abandonné`) }}
+                  >
+                    <WishRow item={item} onPress={() => open(item.id)} onLongPress={() => menu(item)} />
+                  </Swipeable>
                 ))}
               </Card>
             </View>
@@ -282,17 +355,23 @@ export default function WishlistScreen() {
           {closedItems.length ? (
             <Card style={{ gap: 0 }}>
               {closedItems.map((item) => (
-                <ListRow
+                <Swipeable
                   key={item.id}
-                  title={item.name}
-                  subtitle={
-                    item.status === "bought"
-                      ? `Acheté le ${item.closedOn ? formatFrDate(item.closedOn) : "?"}`
-                      : `Abandonné le ${item.closedOn ? formatFrDate(item.closedOn) : "?"} · économisé`
-                  }
-                  right={formatCents(item.paidCents ?? item.priceCents, true)}
-                  onPress={() => open(item.id)}
-                />
+                  style={{ marginHorizontal: -space.sm }}
+                  left={{ icon: "arrow-undo-outline", label: "Remettre en envie", onAction: () => setStatus(item, "wanted", `${item.name} : remis en envie`) }}
+                >
+                  <ListRow
+                    title={item.name}
+                    subtitle={
+                      item.status === "bought"
+                        ? `Acheté le ${item.closedOn ? formatFrDate(item.closedOn) : "?"}`
+                        : `Abandonné le ${item.closedOn ? formatFrDate(item.closedOn) : "?"} · économisé`
+                    }
+                    right={formatCents(item.paidCents ?? item.priceCents, true)}
+                    onPress={() => open(item.id)}
+                    onLongPress={() => menu(item)}
+                  />
+                </Swipeable>
               ))}
             </Card>
           ) : (
@@ -361,11 +440,12 @@ export default function WishlistScreen() {
           </View>
         </View>
       </Sheet>
+      {actions.sheet}
     </Screen>
   );
 }
 
-function WishRow({ item, onPress }: { item: WishItem; onPress: () => void }) {
+function WishRow({ item, onPress, onLongPress }: { item: WishItem; onPress: () => void; onLongPress: () => void }) {
   const cooling = coolingLeft(item);
   return (
     <ListRow
@@ -380,6 +460,7 @@ function WishRow({ item, onPress }: { item: WishItem; onPress: () => void }) {
         </View>
       }
       onPress={onPress}
+      onLongPress={onLongPress}
     />
   );
 }

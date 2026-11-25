@@ -21,9 +21,12 @@ import {
   Segmented,
   SkeletonCard,
   space,
+  Swipeable,
   Txt,
+  useActionSheet,
   useSnackbar,
   useTheme,
+  type MenuAction,
 } from "@/components/ui";
 import { dayProgress } from "@/lib/adherence";
 import { atLocalTime, shortFrDate, today } from "@/lib/dates";
@@ -32,8 +35,8 @@ import { refreshHairChecks, type HairState } from "@/lib/hairChecks";
 import { ZONES } from "@/lib/hairPhotos";
 import { loadNights } from "@/lib/nights";
 import { nightsDetail, previousNights, weekdayInitial, type Bucket, type Night } from "@/lib/sleep";
-import { isScheduled } from "@/lib/stock";
-import { addStock, formLabel, refreshTreatments, stockShort, type TreatmentState } from "@/lib/treatments";
+import { isScheduled, type DoseStatus } from "@/lib/stock";
+import { addStock, formLabel, logDose, refreshTreatments, stockShort, undoDose, type TreatmentState } from "@/lib/treatments";
 
 type Tab = "suivi" | "traitements";
 
@@ -73,7 +76,18 @@ export default function HealthScreen() {
   );
 
   return (
-    <Screen title="Santé" subtitle="Suivi et traitements" domain="sante">
+    <Screen
+      title="Santé"
+      subtitle="Suivi et traitements"
+      domain="sante"
+      icon="fitness-outline"
+      menu={[
+        { icon: "add-circle-outline", label: "Ajouter un traitement", onPress: () => router.push("/sante/traitements/modifier") },
+        { icon: "camera-outline", label: "Check photo du mois", hint: "4 zones, mêmes conditions", onPress: () => router.push("/hair-check") },
+        { icon: "images-outline", label: "Suivi cheveux", onPress: () => router.push("/sante/cheveux") },
+        { icon: "notifications-outline", label: "Rappels", onPress: () => router.push("/plus/reglages") },
+      ]}
+    >
       <LocalBadge />
       <Segmented
         options={[
@@ -211,6 +225,52 @@ function Treatments({ states, onChanged }: { states: TreatmentState[]; onChanged
   const day = today();
   const due = states.filter((s) => s.forecast.renewalAlertOn && s.forecast.runOutOn && s.forecast.renewalAlertOn <= day);
   const { expected, logged } = dayProgress(states, day);
+  const actions = useActionSheet();
+
+  /** Next dose slot to log today: the first open one, or one more for "as needed"; null when nothing is due. */
+  const nextSlot = (s: TreatmentState): number | null => {
+    const r = s.regimen;
+    const todays = s.doses.filter((d) => d.day === day).map((d) => d.slot);
+    if (r?.frequency === "as_needed") return Math.max(0, ...todays) + 1;
+    if (!r || !isScheduled(r, day)) return null;
+    return Array.from({ length: r.dosesPerDay }, (_, i) => i + 1).find((n) => !todays.includes(n)) ?? null;
+  };
+
+  const logNext = async (s: TreatmentState, status: DoseStatus) => {
+    const slot = nextSlot(s);
+    if (slot === null) return;
+    haptics.success();
+    await logDose(db, s, day, slot, status);
+    onChanged();
+    snackbar.show({
+      message: `${s.treatment.name} : ${status === "taken" ? "pris" : "noté sauté"}`,
+      undo: async () => {
+        const row = await db.getFirstAsync<{ id: number }>(
+          "SELECT id FROM treatment_doses WHERE treatment_id = ? AND day = ? AND slot = ? AND undone_at IS NULL",
+          s.treatment.id,
+          day,
+          slot,
+        );
+        if (row) await undoDose(db, row.id);
+        onChanged();
+      },
+    });
+  };
+
+  const menu = (s: TreatmentState) => {
+    const slot = nextSlot(s);
+    const scheduled = s.regimen?.frequency !== "as_needed";
+    const list: MenuAction[] = [
+      ...(slot !== null ? [{ icon: "checkmark-circle-outline" as const, label: "Pris maintenant", onPress: () => logNext(s, "taken") }] : []),
+      ...(slot !== null && scheduled ? [{ icon: "remove-circle-outline" as const, label: "Noter sauté", hint: "Compte comme manqué volontairement", onPress: () => logNext(s, "skipped") }] : []),
+      ...(s.treatment.packageSize
+        ? [{ icon: "cube-outline" as const, label: `${s.treatment.unit === "ml" ? "Flacon" : "Boîte"} renouvelé`, hint: `+${s.treatment.packageSize} au stock`, onPress: () => renewed(s) }]
+        : []),
+      { icon: "create-outline", label: "Modifier", onPress: () => router.push({ pathname: "/sante/traitements/modifier", params: { id: String(s.treatment.id) } }) },
+      { icon: "calendar-outline", label: "Historique et stock", onPress: () => router.push({ pathname: "/sante/traitements/[id]", params: { id: String(s.treatment.id) } }) },
+    ];
+    actions.open(s.treatment.name, list);
+  };
 
   const renewed = async (s: TreatmentState) => {
     if (!s.treatment.packageSize) {
@@ -256,9 +316,21 @@ function Treatments({ states, onChanged }: { states: TreatmentState[]; onChanged
       <SectionTitle right={expected ? `${logged} / ${expected} fait aujourd'hui` : undefined}>
         {states.length} traitement{states.length > 1 ? "s" : ""}
       </SectionTitle>
-      {states.map((s, i) => (
-        <TreatmentSummary key={s.treatment.id} state={s} index={i} alert={due.includes(s)} onRenewed={() => renewed(s)} />
-      ))}
+      {states.map((s, i) => {
+        const slot = nextSlot(s);
+        return (
+          <Swipeable
+            key={s.treatment.id}
+            background={null}
+            rounded={radius.lg}
+            left={slot !== null ? { icon: "checkmark-circle-outline", label: "Pris", onAction: () => logNext(s, "taken") } : undefined}
+            right={slot !== null && s.regimen?.frequency !== "as_needed" ? { icon: "remove-circle-outline", label: "Sauté", onAction: () => logNext(s, "skipped") } : undefined}
+          >
+            <TreatmentSummary state={s} index={i} alert={due.includes(s)} onRenewed={() => renewed(s)} onMenu={() => menu(s)} />
+          </Swipeable>
+        );
+      })}
+      {actions.sheet}
       <AddRow label="Ajouter un traitement" hint="Nom, forme, prises, stock : tu saisis, l'app rappelle" onPress={() => router.push("/sante/traitements/modifier")} />
     </>
   );
@@ -266,7 +338,19 @@ function Treatments({ states, onChanged }: { states: TreatmentState[]; onChanged
 
 const time = (iso: string) => new Date(iso).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
 
-function TreatmentSummary({ state: s, index, alert, onRenewed }: { state: TreatmentState; index: number; alert: boolean; onRenewed: () => void }) {
+function TreatmentSummary({
+  state: s,
+  index,
+  alert,
+  onRenewed,
+  onMenu,
+}: {
+  state: TreatmentState;
+  index: number;
+  alert: boolean;
+  onRenewed: () => void;
+  onMenu: () => void;
+}) {
   const t = useTheme();
   const day = today();
   const tr = s.treatment;
@@ -295,7 +379,9 @@ function TreatmentSummary({ state: s, index, alert, onRenewed }: { state: Treatm
       <PressableScale
         accessibilityRole="link"
         accessibilityLabel={`${tr.name}, ${status.label}. Ouvrir le détail`}
+        accessibilityHint="Appui long pour plus d'actions"
         onPress={() => router.push({ pathname: "/sante/traitements/[id]", params: { id: String(tr.id) } })}
+        onLongPress={onMenu}
         style={{ gap: space.sm }}
       >
         <View style={{ flexDirection: "row", alignItems: "flex-start", gap: space.sm }}>

@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
+import * as Clipboard from "expo-clipboard";
 import { router, useFocusEffect } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
 import { GroceryPlan, GroceryRequest, type Aisle, type Meal, type Store } from "@ld/contracts";
@@ -23,8 +24,11 @@ import {
   SkeletonCard,
   space,
   Stepper,
+  Swipeable,
   Txt,
   useAccent,
+  useActionSheet,
+  useSnackbar,
   useTheme,
 } from "@/components/ui";
 import { AISLE_LABEL, AISLE_ORDER } from "@/lib/aisles";
@@ -64,6 +68,8 @@ export default function CoursesScreen() {
   const [generating, setGenerating] = useState(false);
   const [generateSheet, setGenerateSheet] = useState(false);
   const [meal, setMeal] = useState<Meal | null>(null);
+  const snackbar = useSnackbar();
+  const actions = useActionSheet();
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -152,6 +158,38 @@ export default function CoursesScreen() {
     else await db.runAsync("INSERT OR IGNORE INTO grocery_checks (plan_id, item_name) VALUES (?, ?)", plan.id, name);
   };
 
+  /** Ticks or unticks several items at once (a whole aisle, the whole list), with undo. */
+  const setMany = async (names: string[], on: boolean, message: string) => {
+    if (!plan) return;
+    const changed = names.filter((n) => checked.has(n) !== on);
+    if (!changed.length) return;
+    haptics.success();
+    const write = async (value: boolean) => {
+      const next = new Set(checked);
+      for (const n of changed) {
+        if (value) next.add(n);
+        else next.delete(n);
+        if (value) await db.runAsync("INSERT OR IGNORE INTO grocery_checks (plan_id, item_name) VALUES (?, ?)", plan.id, n);
+        else await db.runAsync("DELETE FROM grocery_checks WHERE plan_id = ? AND item_name = ?", plan.id, n);
+      }
+      setChecked(next);
+    };
+    await write(on);
+    snackbar.show({ message, undo: () => write(!on), redo: () => write(on) });
+  };
+
+  /** The items left to buy, by aisle, as plain text for a message or a note. */
+  const copyList = async () => {
+    if (!plan) return;
+    const text = byAisle
+      .map((g) => ({ aisle: g.aisle, items: g.items.filter((i) => !checked.has(i.name)) }))
+      .filter((g) => g.items.length)
+      .map((g) => `${AISLE_LABEL[g.aisle]}\n${g.items.map((i) => `- ${i.name} (${i.quantity})`).join("\n")}`)
+      .join("\n\n");
+    await Clipboard.setStringAsync(text || "Tout est pris.");
+    snackbar.show({ message: "Liste copiée" });
+  };
+
   const byAisle = useMemo(
     () =>
       plan
@@ -171,6 +209,19 @@ export default function CoursesScreen() {
       title="Courses"
       subtitle={subtitle}
       domain="courses"
+      icon="cart-outline"
+      menu={[
+        { icon: "sparkles-outline", label: "Générer un plan", hint: "Claude, d'après ton budget et tes envies", onPress: () => setGenerateSheet(true) },
+        { icon: "download-outline", label: "Importer un plan", onPress: () => router.push({ pathname: "/plus/importer", params: { type: "courses" } }) },
+        ...(plan
+          ? [
+              { icon: "copy-outline" as const, label: "Copier la liste", hint: "Ce qui reste à prendre, par rayon", onPress: copyList },
+              ...(checked.size
+                ? [{ icon: "refresh-outline" as const, label: "Tout décocher", onPress: () => setMany(plan.data.items.map((i) => i.name), false, "Liste décochée") }]
+                : []),
+            ]
+          : []),
+      ]}
       right={<IconButton icon="sparkles-outline" label="Générer un nouveau plan" onPress={() => setGenerateSheet(true)} />}
     >
       {error ? (
@@ -234,35 +285,55 @@ export default function CoursesScreen() {
                 <Card key={g.aisle} title={AISLE_LABEL[g.aisle]} right={`${g.items.length} article${g.items.length > 1 ? "s" : ""}`} index={i + 2} style={{ gap: space.xs }}>
                   {g.items.map((item) => {
                     const done = checked.has(item.name);
+                    const aisle = g.items.map((i) => i.name);
                     return (
-                      <Pressable
+                      <Swipeable
                         key={item.name}
-                        accessibilityRole="checkbox"
-                        accessibilityState={{ checked: done }}
-                        accessibilityLabel={`${item.name}, ${item.quantity}, ${item.priceSource === "known" ? "" : "environ "}${euros(item.estPriceEur)}`}
-                        onPress={() => toggle(item.name)}
-                        style={({ pressed }) => ({
-                          flexDirection: "row",
-                          alignItems: "center",
-                          gap: space.sm,
-                          minHeight: 52,
-                          marginHorizontal: -space.sm,
-                          paddingRight: space.sm,
-                          borderRadius: radius.md,
-                          backgroundColor: pressed ? t.surfaceAlt : "transparent",
-                        })}
+                        style={{ marginHorizontal: -space.sm }}
+                        left={{ icon: done ? "arrow-undo-outline" : "checkmark", label: done ? "Décocher" : "Pris", onAction: () => toggle(item.name) }}
                       >
-                        <CheckMark state={done ? "done" : "empty"} />
-                        <View style={{ flex: 1 }}>
-                          <Txt tone={done ? "muted" : "default"} style={{ textDecorationLine: done ? "line-through" : "none" }}>
-                            {item.name}
-                          </Txt>
-                          <Txt variant="caption" tone="muted">
-                            {item.quantity}
-                          </Txt>
-                        </View>
-                        <PriceBadge eur={item.estPriceEur} known={item.priceSource === "known"} />
-                      </Pressable>
+                        <Pressable
+                          accessibilityRole="checkbox"
+                          accessibilityState={{ checked: done }}
+                          accessibilityLabel={`${item.name}, ${item.quantity}, ${item.priceSource === "known" ? "" : "environ "}${euros(item.estPriceEur)}`}
+                          accessibilityHint="Appui long pour le rayon entier"
+                          onPress={() => toggle(item.name)}
+                          onLongPress={() =>
+                            actions.open(item.name, [
+                              { icon: "checkmark-done-outline", label: "Cocher tout le rayon", hint: AISLE_LABEL[g.aisle], onPress: () => setMany(aisle, true, `${AISLE_LABEL[g.aisle]} : tout est pris`) },
+                              { icon: "refresh-outline", label: "Décocher le rayon", onPress: () => setMany(aisle, false, `${AISLE_LABEL[g.aisle]} décoché`) },
+                              {
+                                icon: "copy-outline",
+                                label: "Copier l'article",
+                                onPress: async () => {
+                                  await Clipboard.setStringAsync(`${item.name} (${item.quantity})`);
+                                  snackbar.show({ message: "Article copié" });
+                                },
+                              },
+                            ])
+                          }
+                          style={({ pressed }) => ({
+                            flexDirection: "row",
+                            alignItems: "center",
+                            gap: space.sm,
+                            minHeight: 52,
+                            paddingRight: space.sm,
+                            borderRadius: radius.md,
+                            backgroundColor: pressed ? t.surfaceAlt : "transparent",
+                          })}
+                        >
+                          <CheckMark state={done ? "done" : "empty"} />
+                          <View style={{ flex: 1 }}>
+                            <Txt tone={done ? "muted" : "default"} style={{ textDecorationLine: done ? "line-through" : "none" }}>
+                              {item.name}
+                            </Txt>
+                            <Txt variant="caption" tone="muted">
+                              {item.quantity}
+                            </Txt>
+                          </View>
+                          <PriceBadge eur={item.estPriceEur} known={item.priceSource === "known"} />
+                        </Pressable>
+                      </Swipeable>
                     );
                   })}
                 </Card>
@@ -386,6 +457,7 @@ export default function CoursesScreen() {
           </View>
         ) : null}
       </Sheet>
+      {actions.sheet}
     </Screen>
   );
 }

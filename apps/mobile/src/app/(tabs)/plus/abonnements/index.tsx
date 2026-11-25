@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { View } from "react-native";
+import { Alert, View } from "react-native";
 import Animated from "react-native-reanimated";
 import { router, useFocusEffect } from "expo-router";
 import { useSQLiteContext } from "expo-sqlite";
@@ -19,17 +19,26 @@ import {
   StackedBar,
   Stat,
   StatGrid,
+  Swipeable,
   tint,
   Txt,
+  useActionSheet,
+  useSnackbar,
   useTheme,
+  type MenuAction,
 } from "@/components/ui";
 import { CATEGORY_STYLE } from "@/components/subscriptionMeta";
 import { shortFrDate } from "@/lib/dates";
+import { haptics } from "@/lib/haptics";
 import { formatCents } from "@/lib/money";
 import { cycleLabel } from "@/lib/renewals";
 import {
   CATEGORY_LABEL,
+  cancellationUrl,
+  deleteSubscription,
+  openCancellation,
   refreshSubscriptions,
+  setSubscriptionStatus,
   subscriptionAlerts,
   type SubscriptionCategory,
   type SubscriptionState,
@@ -62,6 +71,57 @@ export default function SubscriptionsScreen() {
     .sort((a, b) => b.cents - a.cents);
   const alerts = subscriptionAlerts(subs);
   const open = (id: number | "new") => router.push({ pathname: "/plus/abonnements/[id]", params: { id: String(id) } });
+  const snackbar = useSnackbar();
+  const actions = useActionSheet();
+
+  /** Résilié / réactivé, with undo. */
+  const setStatus = async (s: SubscriptionState, status: "active" | "cancelled") => {
+    haptics.success();
+    await setSubscriptionStatus(db, s.id, status);
+    await load();
+    snackbar.show({
+      message: `${s.name} : ${status === "cancelled" ? "noté résilié" : "réactivé"}`,
+      undo: async () => {
+        await setSubscriptionStatus(db, s.id, s.status === "cancelled" ? "cancelled" : "active");
+        await load();
+      },
+    });
+  };
+
+  const swipe = (s: SubscriptionState) =>
+    s.status === "cancelled"
+      ? { icon: "refresh-outline" as const, label: "Réactiver", onAction: () => setStatus(s, "active") }
+      : { icon: "close-circle-outline" as const, label: "Résilié", danger: true, onAction: () => setStatus(s, "cancelled") };
+
+  const menu = (s: SubscriptionState) => {
+    const list: MenuAction[] = [
+      { icon: "create-outline", label: "Modifier", onPress: () => open(s.id) },
+      ...(s.status !== "cancelled" && cancellationUrl(s)
+        ? [{ icon: "open-outline" as const, label: "Page de résiliation", hint: s.billing === "google_play" ? "Google Play" : undefined, onPress: () => openCancellation(s) }]
+        : []),
+      s.status === "cancelled"
+        ? { icon: "refresh-outline", label: "Réactiver", onPress: () => setStatus(s, "active") }
+        : { icon: "close-circle-outline", label: "Noter résilié", hint: "Plus de rappel ni de budget", onPress: () => setStatus(s, "cancelled") },
+      {
+        icon: "trash-outline",
+        label: "Supprimer",
+        danger: true,
+        onPress: () =>
+          Alert.alert(`Supprimer « ${s.name} » ?`, "Il disparaît du budget et de l'historique.", [
+            { text: "Annuler", style: "cancel" },
+            {
+              text: "Supprimer",
+              style: "destructive",
+              onPress: async () => {
+                await deleteSubscription(db, s.id);
+                load();
+              },
+            },
+          ]),
+      },
+    ];
+    actions.open(s.name, list);
+  };
 
   return (
     <Screen back domain="epargne" title="Abonnements" subtitle="Ce que tu paies chaque mois, et quand">
@@ -107,7 +167,11 @@ export default function SubscriptionsScreen() {
         {active.length === 0 ? (
           <EmptyState icon="card-outline" title="Aucun abonnement" body="Ajoute tes abonnements pour voir ton budget mensuel et être prévenu avant chaque prélèvement." />
         ) : (
-          active.map((s) => <SubscriptionRow key={s.id} sub={s} onPress={() => open(s.id)} />)
+          active.map((s) => (
+            <Swipeable key={s.id} style={{ marginHorizontal: -space.sm }} right={swipe(s)}>
+              <SubscriptionRow sub={s} onPress={() => open(s.id)} onLongPress={() => menu(s)} />
+            </Swipeable>
+          ))
         )}
       </Card>
 
@@ -125,7 +189,9 @@ export default function SubscriptionsScreen() {
           {showCancelled ? (
             <Card index={0}>
               {cancelled.map((s) => (
-                <SubscriptionRow key={s.id} sub={s} onPress={() => open(s.id)} />
+                <Swipeable key={s.id} style={{ marginHorizontal: -space.sm }} left={swipe(s)}>
+                  <SubscriptionRow sub={s} onPress={() => open(s.id)} onLongPress={() => menu(s)} />
+                </Swipeable>
               ))}
             </Card>
           ) : null}
@@ -133,11 +199,12 @@ export default function SubscriptionsScreen() {
       ) : null}
 
       <Button label="Ajouter un abonnement" icon="add" variant="soft" onPress={() => open("new")} />
+      {actions.sheet}
     </Screen>
   );
 }
 
-function SubscriptionRow({ sub, onPress }: { sub: SubscriptionState; onPress: () => void }) {
+function SubscriptionRow({ sub, onPress, onLongPress }: { sub: SubscriptionState; onPress: () => void; onLongPress: () => void }) {
   const style = CATEGORY_STYLE[sub.category];
   const cancelled = sub.status === "cancelled";
   return (
@@ -145,8 +212,10 @@ function SubscriptionRow({ sub, onPress }: { sub: SubscriptionState; onPress: ()
       <PressableScale
         accessibilityRole="button"
         accessibilityLabel={`${sub.name}, ${formatCents(sub.priceCents)} ${cycleLabel(sub.cycle)}`}
+        accessibilityHint="Appui long pour plus d'actions"
         onPress={onPress}
-        style={{ flexDirection: "row", alignItems: "center", gap: space.md, minHeight: 56, opacity: cancelled ? 0.6 : 1 }}
+        onLongPress={onLongPress}
+        style={{ flexDirection: "row", alignItems: "center", gap: space.md, minHeight: 56, paddingHorizontal: space.sm, opacity: cancelled ? 0.6 : 1 }}
       >
         <IconTile icon={style.icon} color={style.color} />
         <View style={{ flex: 1, gap: 2 }}>

@@ -47,7 +47,17 @@ export default function PlusScreen() {
   ];
 
   return (
-    <Screen title="Plus" domain="encre">
+    <Screen
+      title="Plus"
+      domain="encre"
+      icon="grid-outline"
+      menu={[
+        { icon: "gift-outline", label: "Nouvelle envie", onPress: () => router.push({ pathname: "/plus/wishlist/[id]", params: { id: "new" } }) },
+        { icon: "card-outline", label: "Nouvel abonnement", onPress: () => router.push({ pathname: "/plus/abonnements/[id]", params: { id: "new" } }) },
+        { icon: "bulb-outline", label: "Noter une idée", onPress: () => router.push({ pathname: "/capture", params: { from: "/plus" } }) },
+        { icon: "bug-outline", label: "Signaler un bug", onPress: () => router.push({ pathname: "/capture", params: { from: "/plus", kind: "bug" } }) },
+      ]}
+    >
       <Card style={{ gap: 0 }}>
         {entries.map((e) => (
           <ListRow key={e.title} icon={e.icon} iconColor={e.domain} title={e.title} subtitle={e.subtitle} onPress={() => router.push(e.href)} />
