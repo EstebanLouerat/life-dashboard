@@ -88,3 +88,19 @@ export function adherence(
   }
   return { expected, taken, ratio: expected > 0 ? taken / expected : null, takenCount };
 }
+
+/**
+ * Doses expected today and how many are logged (taken or skipped), across
+ * treatments, with each treatment's regimen in force today.
+ */
+export function dayProgress(states: { regimen: Regimen | null; doses: Dose[] }[], day: string): { expected: number; logged: number } {
+  let expected = 0;
+  let logged = 0;
+  for (const s of states) {
+    if (!s.regimen || !isScheduled(s.regimen, day)) continue;
+    const perDay = s.regimen.dosesPerDay;
+    expected += perDay;
+    logged += s.doses.filter((d) => d.day === day && d.slot <= perDay).length;
+  }
+  return { expected, logged };
+}

@@ -17,6 +17,7 @@ import {
   type TodayPlan,
 } from "@/components/today/tiles";
 import { useWorkoutRunner } from "@/components/WorkoutRunner";
+import { dayProgress } from "@/lib/adherence";
 import { parseLayout, TILES, tileRows, type LayoutEntry } from "@/lib/dashboard";
 import { addDays, today } from "@/lib/dates";
 import { haptics } from "@/lib/haptics";
@@ -25,7 +26,7 @@ import { loadNights, setNight } from "@/lib/nights";
 import { nextHydrationReminder, parsePrefs } from "@/lib/reminders";
 import { intSetting, readSettings } from "@/lib/settings";
 import { SLEEP_BUCKETS, type Bucket, type Night } from "@/lib/sleep";
-import { isScheduled, type DoseStatus } from "@/lib/stock";
+import type { DoseStatus } from "@/lib/stock";
 import { refreshSubscriptions, subscriptionAlerts, type MoneyAlert } from "@/lib/subscriptions";
 import { logDose, refreshTreatments, undoDose, type TreatmentState } from "@/lib/treatments";
 import { refreshWishlist, wishlistAlerts, type WishlistState } from "@/lib/wishlist";
@@ -295,13 +296,8 @@ export default function TodayScreen() {
 
   const summary = (() => {
     if (!data) return " ";
-    const day = data.day;
-    let left = 0;
-    for (const s of data.treatments) {
-      if (!isScheduled(s.regimen, day)) continue;
-      const logged = s.doses.filter((d) => d.day === day && d.slot <= s.regimen!.dosesPerDay).length;
-      left += Math.max(0, s.regimen!.dosesPerDay - logged);
-    }
+    const { expected, logged } = dayProgress(data.treatments, data.day);
+    const left = expected - logged;
     const rest: string[] = [];
     if (left) rest.push(`${left} prise${left > 1 ? "s" : ""}`);
     if (data.tonight === null) rest.push("ta nuit");

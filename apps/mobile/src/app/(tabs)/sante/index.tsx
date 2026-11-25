@@ -25,6 +25,7 @@ import {
   useSnackbar,
   useTheme,
 } from "@/components/ui";
+import { dayProgress } from "@/lib/adherence";
 import { atLocalTime, shortFrDate, today } from "@/lib/dates";
 import { haptics } from "@/lib/haptics";
 import { refreshHairChecks, type HairState } from "@/lib/hairChecks";
@@ -209,9 +210,7 @@ function Treatments({ states, onChanged }: { states: TreatmentState[]; onChanged
   const snackbar = useSnackbar();
   const day = today();
   const due = states.filter((s) => s.forecast.renewalAlertOn && s.forecast.runOutOn && s.forecast.renewalAlertOn <= day);
-  const scheduled = states.filter((s) => isScheduled(s.regimen, day));
-  const expected = scheduled.reduce((n, s) => n + s.regimen!.dosesPerDay, 0);
-  const logged = scheduled.reduce((n, s) => n + s.doses.filter((d) => d.day === day && d.slot <= s.regimen!.dosesPerDay).length, 0);
+  const { expected, logged } = dayProgress(states, day);
 
   const renewed = async (s: TreatmentState) => {
     if (!s.treatment.packageSize) {

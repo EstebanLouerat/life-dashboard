@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { addDays, atLocalTime } from "./dates.ts";
-import { adherence, history } from "./adherence.ts";
+import { adherence, dayProgress, history } from "./adherence.ts";
 import type { Dose, Regimen } from "./stock.ts";
 
 const D0 = "2026-01-05"; // a Monday
@@ -56,5 +56,18 @@ describe("adherence", () => {
     const a = adherence([asNeeded], [dose(D0), dose(addDays(D0, 1))], addDays(D0, 2), 7);
     assert.equal(a.ratio, null);
     assert.equal(a.takenCount, 2);
+  });
+});
+
+describe("dayProgress", () => {
+  it("counts today's expected doses and the logged ones, taken or skipped", () => {
+    const twice: Regimen = { ...daily, dosesPerDay: 2 };
+    const states = [
+      { regimen: twice, doses: [dose(D0), { ...dose(D0, "skipped"), slot: 2 }, { ...dose(D0), slot: 3 }] },
+      { regimen: daily, doses: [dose(addDays(D0, -1))] },
+      { regimen: null, doses: [dose(D0)] },
+      { regimen: { ...daily, frequency: "as_needed" as const }, doses: [dose(D0)] },
+    ];
+    assert.deepEqual(dayProgress(states, D0), { expected: 3, logged: 2 });
   });
 });

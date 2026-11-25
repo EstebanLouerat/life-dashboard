@@ -24,6 +24,7 @@ import type { Run } from "@/components/WorkoutRunner";
 import { diffDays, shortFrDate } from "@/lib/dates";
 import { haptics } from "@/lib/haptics";
 import { waterGauge } from "@/lib/hydration";
+import { dayProgress } from "@/lib/adherence";
 import { formatCents } from "@/lib/money";
 import { fundingOrder } from "@/lib/savings";
 import { previousNights, nightsSummary, SLEEP_BUCKETS, weekdayInitial, type Bucket, type Night } from "@/lib/sleep";
@@ -114,7 +115,7 @@ export function TreatmentsTile({
       dose: s.doses.find((d) => d.day === day && d.slot === slot),
     })),
   );
-  const done = rows.filter((r) => r.dose).length;
+  const { expected, logged } = dayProgress(states, day);
   // Yesterday's open slots, with the regimen that was in force yesterday (none before a treatment starts).
   const late = states.flatMap((s) => {
     const then = regimenOn(s.regimens, yesterday);
@@ -126,7 +127,7 @@ export function TreatmentsTile({
   });
 
   return (
-    <Tile domain="sante" icon="medkit-outline" title="Traitements du jour" note={rows.length ? `${done} / ${rows.length} fait` : undefined} index={index}>
+    <Tile domain="sante" icon="medkit-outline" title="Traitements du jour" note={expected ? `${logged} / ${expected} fait` : undefined} index={index}>
       {rows.length === 0 && asNeeded.length === 0 ? (
         <Txt variant="callout" tone="muted">
           Aucune prise prévue aujourd'hui.

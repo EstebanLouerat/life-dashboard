@@ -1,20 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { WorkoutSession } from "@ld/contracts";
 import { haptics } from "@/lib/haptics";
-import { buildSteps, type Step } from "@/lib/workoutTimeline";
+import { buildSteps, goToStep, secondsLeft, togglePause as pauseOrResume, type RunState } from "@/lib/workoutTimeline";
 
-export type Run = {
-  sessionId: number;
-  session: WorkoutSession;
-  steps: Step[];
-  index: number;
-  /** Epoch ms the current timed step ends at while running; null when paused or counted in reps. */
-  endsAt: number | null;
-  /** Remaining ms of the current timed step while paused. */
-  remainingMs: number;
-  paused: boolean;
-  finished: boolean;
-};
+export type Run = RunState & { sessionId: number; session: WorkoutSession };
 
 type RunnerApi = {
   run: Run | null;
@@ -29,9 +18,6 @@ type RunnerApi = {
 
 const RunnerContext = createContext<RunnerApi | null>(null);
 
-function stepMs(step: Step | undefined): number {
-  return step?.seconds != null ? step.seconds * 1000 : 0;
-}
 
 /**
  * The session being played, shared by the full-screen timer, the accessory
@@ -47,18 +33,7 @@ export function WorkoutRunnerProvider({ children }: { children: ReactNode }) {
   /** Step index already auto-advanced, so two ticks never skip two steps. */
   const advanced = useRef<number | null>(null);
 
-  const goTo = useCallback((r: Run, index: number): Run => {
-    if (index >= r.steps.length) return { ...r, index: r.steps.length - 1, endsAt: null, remainingMs: 0, paused: true, finished: true };
-    const step = r.steps[Math.max(0, index)];
-    const ms = stepMs(step);
-    return {
-      ...r,
-      index: Math.max(0, index),
-      remainingMs: ms,
-      endsAt: step.seconds != null && !r.paused ? Date.now() + ms : null,
-      finished: false,
-    };
-  }, []);
+  const goTo = useCallback((r: Run, index: number): Run => goToStep(r, index, Date.now()), []);
 
   const start = useCallback(
     (sessionId: number, session: WorkoutSession) => {
@@ -89,14 +64,7 @@ export function WorkoutRunnerProvider({ children }: { children: ReactNode }) {
 
   const togglePause = useCallback(() => {
     haptics.tap();
-    setRun((r) => {
-      if (!r || r.finished) return r;
-      if (r.paused) {
-        const step = r.steps[r.index];
-        return { ...r, paused: false, endsAt: step.seconds != null ? Date.now() + r.remainingMs : null };
-      }
-      return { ...r, paused: true, remainingMs: r.endsAt ? Math.max(0, r.endsAt - Date.now()) : r.remainingMs, endsAt: null };
-    });
+    setRun((r) => (r ? pauseOrResume(r, Date.now()) : r));
   }, []);
 
   const stop = useCallback(() => setRun(null), []);
@@ -115,7 +83,7 @@ export function WorkoutRunnerProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(id);
   }, [run?.endsAt, next]);
 
-  const remaining = run ? (run.endsAt ? Math.max(0, (run.endsAt - now) / 1000) : run.remainingMs / 1000) : 0;
+  const remaining = run ? secondsLeft(run, now) : 0;
 
   const value = useMemo(
     () => ({ run, remaining, start, togglePause, next, previous, stop }),

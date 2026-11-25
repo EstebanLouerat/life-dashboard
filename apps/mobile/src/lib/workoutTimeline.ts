@@ -108,3 +108,34 @@ export const RPE_LABEL: Record<RpeValue, string> = {
   dur: "Dur",
   "trop-dur": "Trop dur",
 };
+
+/** Where the guided timer is. A timed step runs from `endsAt` (no drift); `remainingMs` holds it while paused. */
+export type RunState = {
+  steps: Step[];
+  index: number;
+  endsAt: number | null;
+  remainingMs: number;
+  paused: boolean;
+  finished: boolean;
+};
+
+/** Moves to step `index`; past the last one the session is finished. A paused run stays paused. */
+export function goToStep<R extends RunState>(r: R, index: number, now: number): R {
+  if (index >= r.steps.length) return { ...r, index: r.steps.length - 1, endsAt: null, remainingMs: 0, paused: true, finished: true };
+  const i = Math.max(0, index);
+  const step = r.steps[i];
+  const ms = step.seconds != null ? step.seconds * 1000 : 0;
+  return { ...r, index: i, remainingMs: ms, endsAt: step.seconds != null && !r.paused ? now + ms : null, finished: false };
+}
+
+/** Pauses (keeping the time left) or resumes (from that time). A finished run does not move. */
+export function togglePause<R extends RunState>(r: R, now: number): R {
+  if (r.finished) return r;
+  if (r.paused) return { ...r, paused: false, endsAt: r.steps[r.index].seconds != null ? now + r.remainingMs : null };
+  return { ...r, paused: true, remainingMs: r.endsAt ? Math.max(0, r.endsAt - now) : r.remainingMs, endsAt: null };
+}
+
+/** Seconds left in the current step (0 for a step counted in reps). */
+export function secondsLeft(r: RunState, now: number): number {
+  return r.endsAt ? Math.max(0, (r.endsAt - now) / 1000) : r.remainingMs / 1000;
+}

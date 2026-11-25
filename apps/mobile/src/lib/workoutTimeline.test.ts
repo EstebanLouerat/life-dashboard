@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { buildSteps, clock, groupBlocks, minutesLeft, setsLabel, type TimedExercise } from "./workoutTimeline.ts";
+import { buildSteps, clock, goToStep, groupBlocks, minutesLeft, secondsLeft, setsLabel, togglePause, type TimedExercise } from "./workoutTimeline.ts";
 
 const ex = (over: Partial<TimedExercise>): TimedExercise => ({
   name: "x",
@@ -59,5 +59,43 @@ describe("labels", () => {
     const steps = buildSteps([ex({ sets: 2, restSeconds: 30 }), ex({ seconds: 60 })]);
     assert.equal(minutesLeft(steps, 0, 10), 3);
     assert.equal(minutesLeft(steps, steps.length - 1, 5), 1);
+  });
+});
+
+describe("guided timer", () => {
+  const steps = buildSteps([ex({ seconds: 30, sets: 1, restSeconds: 15 }), ex({ reps: 8, seconds: null, sets: 1 })]);
+  const start = (now: number) => goToStep({ steps, index: 0, endsAt: null, remainingMs: 0, paused: false, finished: false }, 0, now);
+
+  it("runs a timed step from its end time", () => {
+    const r = start(1000);
+    assert.equal(r.endsAt, 31_000);
+    assert.equal(secondsLeft(r, 11_000), 20);
+    assert.equal(secondsLeft(r, 40_000), 0);
+  });
+
+  it("keeps the time left across a pause", () => {
+    const paused = togglePause(start(0), 12_000);
+    assert.equal(paused.endsAt, null);
+    assert.equal(secondsLeft(paused, 99_000), 18);
+    const resumed = togglePause(paused, 100_000);
+    assert.equal(resumed.endsAt, 118_000);
+  });
+
+  it("waits on a reps step, then finishes after the last one", () => {
+    const reps = goToStep(start(0), 2, 5000);
+    assert.equal(steps[2].reps, 8);
+    assert.equal(reps.endsAt, null);
+    assert.equal(secondsLeft(reps, 9999), 0);
+    const done = goToStep(reps, 3, 6000);
+    assert.equal(done.finished, true);
+    assert.equal(done.index, 2);
+    assert.equal(togglePause(done, 7000), done);
+  });
+
+  it("stays paused when moving while paused", () => {
+    const moved = goToStep(togglePause(start(0), 1000), 1, 2000);
+    assert.equal(moved.paused, true);
+    assert.equal(moved.endsAt, null);
+    assert.equal(secondsLeft(moved, 50_000), 15);
   });
 });
